@@ -53,6 +53,28 @@ Run test suite and linter:
 ./backend/.venv/Scripts/ruff.exe check .
 ```
 
+Start the FastAPI development server:
+```bash
+# From workspace root
+./backend/.venv/Scripts/uvicorn.exe app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+
+# Or from backend/ directory
+cd backend
+./.venv/Scripts/uvicorn.exe app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Interactive API documentation:
+- **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- **OpenAPI JSON**: [http://127.0.0.1:8000/openapi.json](http://127.0.0.1:8000/openapi.json)
+
+Verified Phase 3 API endpoints:
+- `GET /health` & `GET /api/v1/health`: Operational readiness and live `SELECT 1` DB probe
+- `GET /api/v1/schema`: Approved business schema, columns, and standardized metric formulas
+- `GET /api/v1/examples`: 30 curated business prompts across 6 analytical categories
+- `POST /api/v1/query`: Validates query input (implemented in Phase 5; returns 501 envelope)
+
+
 ### 4. Frontend (React + TypeScript + Vite)
 Build frontend production bundle:
 ```bash
