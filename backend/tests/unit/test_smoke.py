@@ -1,4 +1,5 @@
 """Smoke test to verify test harness and environment."""
+
 import pytest
 
 

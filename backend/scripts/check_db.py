@@ -1,4 +1,5 @@
 """Database connectivity verification script."""
+
 import os
 import sys
 
@@ -37,6 +38,7 @@ def main() -> int:
     except Exception as e:
         print(f"Connection FAILED: {e}", file=sys.stderr)
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
