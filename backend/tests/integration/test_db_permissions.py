@@ -14,7 +14,7 @@ def readonly_conn():
     conn = psycopg.connect(
         dbname=settings.POSTGRES_DB,
         user=settings.POSTGRES_READONLY_USER,
-        password=settings.POSTGRES_READONLY_PASSWORD,
+        password=settings.POSTGRES_READONLY_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
     )
@@ -29,7 +29,7 @@ def app_conn():
     conn = psycopg.connect(
         dbname=settings.POSTGRES_DB,
         user=settings.POSTGRES_APP_USER,
-        password=settings.POSTGRES_APP_PASSWORD,
+        password=settings.POSTGRES_APP_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
     )

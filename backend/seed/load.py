@@ -10,7 +10,6 @@ Loads the deterministic synthetic dataset into the database using the dq_owner r
 
 import os
 import sys
-from datetime import date
 
 # Ensure backend root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -46,9 +45,8 @@ def load_seed_data(force: bool = False) -> dict[str, int]:
     """Load generated synthetic dataset into PostgreSQL database."""
     settings = get_settings()
 
-    # Parse as_of reference date from settings or default to 2024-11-01
-    as_of_str = settings.ANALYTICS_AS_OF_DATE.split("T")[0]
-    as_of_date = date.fromisoformat(as_of_str)
+    # Reference analytical date parsed from settings
+    as_of_date = settings.as_of_date
 
     print(f"Generating deterministic dataset (seed=42, as_of={as_of_date})...")
     data = generate_dataset(seed=42, as_of=as_of_date)
@@ -59,7 +57,7 @@ def load_seed_data(force: bool = False) -> dict[str, int]:
     with psycopg.connect(
         dbname=settings.POSTGRES_DB,
         user=settings.POSTGRES_OWNER_USER,
-        password=settings.POSTGRES_OWNER_PASSWORD,
+        password=settings.POSTGRES_OWNER_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
         autocommit=False,

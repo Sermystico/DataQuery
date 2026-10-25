@@ -25,16 +25,16 @@ def bootstrap_roles() -> None:
     db_name = settings.POSTGRES_DB
     owner_user = settings.POSTGRES_OWNER_USER
     readonly_user = settings.POSTGRES_READONLY_USER
-    readonly_pw = settings.POSTGRES_READONLY_PASSWORD
+    readonly_pw = settings.POSTGRES_READONLY_PASSWORD.get_secret_value()
     app_user = settings.POSTGRES_APP_USER
-    app_pw = settings.POSTGRES_APP_PASSWORD
+    app_pw = settings.POSTGRES_APP_PASSWORD.get_secret_value()
     timeout_ms = settings.QUERY_TIMEOUT_MS
 
     print(f"Connecting to {settings.DB_HOST}:{settings.DB_PORT}/{db_name} as {owner_user}...")
     with psycopg.connect(
         dbname=db_name,
         user=owner_user,
-        password=settings.POSTGRES_OWNER_PASSWORD,
+        password=settings.POSTGRES_OWNER_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
         autocommit=True,
