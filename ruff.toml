@@ -20,6 +20,8 @@ ignore = [
 "eval/*" = ["E402"]
 "backend/tests/**" = ["E402"]
 "tests/**" = ["E402"]
+"backend/scripts/**" = ["E402"]
+"scripts/**" = ["E402"]
 
 [lint.isort]
 known-first-party = ["app", "ground_truth", "run_eval"]
