@@ -53,10 +53,10 @@ def test_custom_request_id_in_error_envelope(client: TestClient) -> None:
     custom_id = "test-error-request-id-112233"
     response = client.post(
         "/api/v1/query",
-        json={"question": "too short"},
+        json={"question": "a"},  # Triggers 422 validation error
         headers={"X-Request-ID": custom_id},
     )
-    assert response.status_code == 501
+    assert response.status_code == 422
     data = response.json()
     assert data["request_id"] == custom_id
     assert response.headers["X-Request-ID"] == custom_id

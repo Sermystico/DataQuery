@@ -117,3 +117,8 @@ class QueryResponse(BaseModel):
         description="Database audit log ID for this query execution",
         examples=["qry_01h8v1b5p7k"],
     )
+    rejection_reasons: list[str] = Field(
+        default_factory=list,
+        description="Detailed reasons if the query was unsupported or rejected by policy",
+        examples=[["Query references forbidden table 'pg_shadow'."]],
+    )

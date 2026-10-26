@@ -272,7 +272,7 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
 
     # 8. Validate Functions
     for func in ast.find_all(exp.Func):
-        if isinstance(func, (exp.Case, exp.If, exp.Exists)):
+        if isinstance(func, (exp.Case, exp.If, exp.Exists, exp.Connector)):
             continue
 
         if isinstance(func, exp.Anonymous):

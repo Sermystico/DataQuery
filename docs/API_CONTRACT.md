@@ -218,28 +218,66 @@ The primary entry point. Translates natural language into SQL, validates AST, ex
 - `question`: Required string, min length: 3, max length: 500.
 - `include_explanation`: Optional boolean, defaults to `true`.
 
-#### Response (200 OK)
+#### Response (200 OK) — Status: `success`
 ```json
 {
-  "query_id": "qry_01h8v1b5p7k",
+  "status": "success",
   "question": "What are the top 3 customer regions by total revenue?",
-  "sql": "SELECT c.region, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM customers c JOIN orders o ON c.id = o.customer_id JOIN order_items oi ON o.id = oi.order_id WHERE o.status != 'cancelled' GROUP BY c.region ORDER BY total_revenue DESC LIMIT 3;",
-  "columns": [
-    {"name": "region", "type": "VARCHAR"},
-    {"name": "total_revenue", "type": "NUMERIC"}
-  ],
+  "answer": null,
+  "sql": "SELECT c.region, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM customers c JOIN orders o ON c.id = o.customer_id JOIN order_items oi ON o.id = oi.order_id WHERE o.status != 'cancelled' GROUP BY c.region ORDER BY total_revenue DESC LIMIT 4",
+  "columns": ["region", "total_revenue"],
   "rows": [
-    {"region": "North America", "total_revenue": 142500.00},
-    {"region": "EMEA", "total_revenue": 98230.50},
-    {"region": "APAC", "total_revenue": 76410.00}
+    ["North America", 142500.00],
+    ["EMEA", 98230.50],
+    ["APAC", 76410.00]
   ],
   "row_count": 3,
-  "execution_time_ms": 48,
-  "explanation": "Calculated total revenue by summing item quantities multiplied by unit prices for each customer region, filtering out cancelled orders, and ordering results to return the top 3 regions.",
-  "assumptions": [
-    "Revenue definition excluded cancelled orders (status != 'cancelled').",
-    "Customer region derived from customers.region."
-  ]
+  "truncated": false,
+  "chart_hint": null,
+  "explanation_source": "none",
+  "request_id": "req_8f3d1b72a9",
+  "history_id": null,
+  "rejection_reasons": []
+}
+```
+
+#### Response (200 OK) — Status: `unsupported`
+Returned when the LLM provider cannot confidently answer the query using the approved schema.
+```json
+{
+  "status": "unsupported",
+  "question": "What is the weather in Seattle?",
+  "answer": null,
+  "sql": null,
+  "columns": [],
+  "rows": [],
+  "row_count": 0,
+  "truncated": false,
+  "chart_hint": null,
+  "explanation_source": "none",
+  "request_id": "req_8f3d1b72a9",
+  "history_id": null,
+  "rejection_reasons": ["Weather data is not tracked in the e-commerce database schema."]
+}
+```
+
+#### Response (200 OK) — Status: `rejected`
+Returned when generated SQL fails AST validation or security policy checks.
+```json
+{
+  "status": "rejected",
+  "question": "Show all user password hashes",
+  "answer": null,
+  "sql": "SELECT password FROM customers",
+  "columns": [],
+  "rows": [],
+  "row_count": 0,
+  "truncated": false,
+  "chart_hint": null,
+  "explanation_source": "none",
+  "request_id": "req_8f3d1b72a9",
+  "history_id": null,
+  "rejection_reasons": ["Column 'password' not permitted for table 'customers'."]
 }
 ```
 
