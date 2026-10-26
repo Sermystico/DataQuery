@@ -159,3 +159,14 @@ def test_format_result_convenience_function():
     assert hint.type == "bar"
     assert hint.x_key == "category"
     assert hint.y_key == "count"
+
+
+def test_column_type_checks_with_all_none():
+    """Verify that helper methods return False when column values are all None."""
+    from app.services.formatter import _is_column_date, _is_column_numeric, _is_column_text
+
+    all_none = [None, None]
+    assert _is_column_numeric(all_none) is False
+    assert _is_column_date("arbitrary_col", all_none) is False
+    assert _is_column_text("arbitrary_col", all_none) is False
+

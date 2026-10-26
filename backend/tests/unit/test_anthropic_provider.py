@@ -224,6 +224,20 @@ def test_anthropic_provider_explain_failure_raises_llm_unavailable() -> None:
         provider.explain("What is total revenue?", ["total_revenue"], [[1500.0]], 1)
 
 
+@pytest.mark.unit
+def test_anthropic_provider_explain_fallback_when_no_text_blocks() -> None:
+    """Verify explain() returns formatted fallback when no text block is returned."""
+    fake_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.content = []  # No text blocks
+    fake_client.messages.create.return_value = fake_response
+
+    provider = AnthropicProvider(api_key="fake-key", client=fake_client)
+    res = provider.explain("What is total revenue?", ["total_revenue"], [[1500.0]], 1)
+
+    assert res == "Query returned 1 row(s) for total_revenue."
+
+
 @pytest.mark.live
 @pytest.mark.skipif(
     not (os.getenv("RUN_LIVE") == "1" and os.getenv("ANTHROPIC_API_KEY")),

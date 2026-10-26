@@ -93,3 +93,16 @@ def test_database_url_generation_and_encoding() -> None:
     assert "user%40domain" in url
     assert "p%40ss%23word%2F123" in url
     assert "@localhost:5432/test_db" in url
+
+
+@pytest.mark.unit
+def test_app_config_reexport() -> None:
+    """Verify app.config re-exports Settings and get_settings correctly."""
+    import app.config as app_config
+    from app.core.config import Settings as CoreSettings
+    from app.core.config import get_settings as core_get_settings
+
+    assert app_config.Settings is CoreSettings
+    assert app_config.get_settings is core_get_settings
+    assert "Settings" in app_config.__all__
+    assert "get_settings" in app_config.__all__

@@ -1,5 +1,7 @@
 """Unit tests for the SQL syntax and policy validator."""
 
+from unittest.mock import patch
+
 import pytest
 
 from app.security.sql_validator import ValidatedSQL, validate_sql
@@ -119,3 +121,69 @@ def test_validated_sql_token_security() -> None:
     with pytest.raises(PermissionError) as exc_info:
         ValidatedSQL("DROP TABLE orders", _token=object())
     assert "cannot be instantiated directly" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_validated_sql_str_and_repr() -> None:
+    """Verify ValidatedSQL __str__ and __repr__ return expected strings."""
+    res = validate_sql("SELECT id FROM orders LIMIT 5")
+    assert res.validated_sql is not None
+    assert str(res.validated_sql) == res.normalized_sql
+    assert repr(res.validated_sql) == f"ValidatedSQL({res.normalized_sql!r})"
+
+
+@pytest.mark.unit
+def test_validate_sql_type_and_length_boundaries() -> None:
+    """Verify non-string, empty, and excessive length queries are rejected safely."""
+    # Non-string input
+    res_non_str = validate_sql(12345)  # type: ignore
+    assert res_non_str.valid is False
+    assert "Query must be a string." in res_non_str.reasons
+
+    # Empty string
+    res_empty = validate_sql("   \n\t  ")
+    assert res_empty.valid is False
+    assert "Query is empty or whitespace-only." in res_empty.reasons
+
+    # > 5000 chars
+    res_long = validate_sql("SELECT " + "a" * 5001)
+    assert res_long.valid is False
+    assert "exceeds 5000 character maximum limit" in res_long.reasons[0]
+
+
+@pytest.mark.unit
+def test_validate_sql_empty_semicolons() -> None:
+    """Verify standalone semicolons return no valid statements error."""
+    res = validate_sql(";;; ; ")
+    assert res.valid is False
+    assert "No valid SQL statements found." in res.reasons
+
+
+@pytest.mark.unit
+def test_validate_sql_unknown_column_on_table() -> None:
+    """Verify column resolution error and post-qualify defense-in-depth column checks."""
+    # Line 317: Natural column resolution error raised by qualify()
+    res = validate_sql("SELECT customers.nonexistent_secret_column FROM customers")
+    assert res.valid is False
+    assert any("Column resolution error" in r for r in res.reasons)
+
+    # Lines 326, 329: Defense-in-depth check if qualify passes an invalid column
+    import sqlglot.expressions as exp
+    mock_ast = validate_sql("SELECT id FROM customers").validated_sql  # valid base
+    assert mock_ast is not None
+
+    fake_col = exp.Column(this=exp.to_identifier("bad_col"), table=exp.to_identifier("customers"))
+    fake_query = exp.select(fake_col).from_("customers")
+
+    with patch("app.security.sql_validator.qualify", return_value=fake_query):
+        res_mocked = validate_sql("SELECT id FROM customers")
+        assert res_mocked.valid is False
+        assert any("Unknown column 'bad_col' on table 'customers'" in r for r in res_mocked.reasons)
+
+
+@pytest.mark.unit
+def test_validate_sql_non_integer_limit_clamped() -> None:
+    """Verify non-integer or unusual LIMIT clauses are safely normalized and clamped."""
+    res = validate_sql("SELECT id FROM orders LIMIT ALL")
+    assert res.valid is True
+    assert "LIMIT 101" in res.normalized_sql

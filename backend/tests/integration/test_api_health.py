@@ -60,3 +60,28 @@ def test_health_503_when_database_down(client: TestClient, monkeypatch: pytest.M
     )
     assert "request_id" in data
     assert response.headers["X-Request-ID"] == data["request_id"]
+
+
+@pytest.mark.integration
+def test_health_503_when_probe_query_fails(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify health endpoint returns 503 when conn.execute probe fails."""
+    from unittest.mock import MagicMock
+
+    from app.db.engines import get_readonly_conn
+    from app.main import app
+
+    mock_conn = MagicMock()
+    mock_conn.execute.side_effect = OperationalError("probe query failed", params=None, orig=Exception("Probe error"))
+
+    def override_get_readonly_conn():
+        yield mock_conn
+
+    app.dependency_overrides[get_readonly_conn] = override_get_readonly_conn
+    try:
+        response = client.get("/api/v1/health")
+        assert response.status_code == 503
+        data = response.json()
+        assert data["error"]["code"] == "DATABASE_UNAVAILABLE"
+        assert "connectivity check failed" in data["error"]["message"].lower()
+    finally:
+        app.dependency_overrides.pop(get_readonly_conn, None)

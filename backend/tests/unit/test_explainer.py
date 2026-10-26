@@ -166,3 +166,31 @@ def test_explainer_include_explanation_false():
     assert spy.explain_called is False
     assert ans is None
     assert source == "none"
+
+
+def test_build_fallback_summary_empty_and_single_row_multi_column():
+    """Verify fallback summaries for empty data and 1 row with multiple columns."""
+    assert build_fallback_summary([], [], 0) == "No rows matched this question."
+    assert build_fallback_summary(["a"], [], 1) == "No rows matched this question."
+
+    summary_multi = build_fallback_summary(["customer_name", "total_orders"], [["Alice", 5]], 1)
+    assert summary_multi == "The query returned 1 row: customer name: Alice, total orders: 5."
+
+
+def test_explainer_empty_string_from_provider_uses_fallback():
+    """When provider returns empty or whitespace string, explainer defaults to fallback summary."""
+    spy = SpyProvider(return_text="   \n   ")
+    cols = ["region", "revenue"]
+    rows = [["North America", 150000.0], ["EMEA", 120000.0]]
+
+    ans, source = generate_explanation(
+        question="Revenue by region?",
+        columns=cols,
+        rows=rows,
+        row_count=2,
+        provider=spy,
+    )
+    assert spy.explain_called is True
+    assert source == "fallback"
+    assert "The query returned 2 rows" in ans
+
