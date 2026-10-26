@@ -1,4 +1,4 @@
-﻿"""Tests verifying PostgreSQL kernel permissions alone block all malicious actions.
+"""Tests verifying PostgreSQL kernel permissions alone block all malicious actions.
 
 This test file explicitly BYPASSES the application-level SQL validator and
 sends dangerous SQL payloads directly over a raw dq_readonly database connection.
@@ -45,38 +45,53 @@ def _get_table_counts(conn: psycopg.Connection) -> dict[str, int]:
 
 @pytest.mark.security
 @pytest.mark.integration
-def test_db_permissions_alone_block_all_dangerous_operations(readonly_raw_conn: psycopg.Connection) -> None:
+def test_db_permissions_alone_block_all_dangerous_operations(
+    readonly_raw_conn: psycopg.Connection,
+) -> None:
     """Verify raw malicious statements fail at the PostgreSQL layer and row counts remain invariant."""
     initial_counts = _get_table_counts(readonly_raw_conn)
     assert all(c > 0 for c in initial_counts.values()), "Analytics tables must be seeded."
 
     dangerous_payloads = [
         # DML
-        ("INSERT INTO customers (name, email, region, signup_date) VALUES ('Evil', 'e@x.com', 'North', '2024-01-01');",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
-        ("UPDATE customers SET name = 'Owned' WHERE id = 1;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
-        ("DELETE FROM orders WHERE id = 1;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
+        (
+            "INSERT INTO customers (name, email, region, signup_date) VALUES ('Evil', 'e@x.com', 'North', '2024-01-01');",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
+        (
+            "UPDATE customers SET name = 'Owned' WHERE id = 1;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
+        (
+            "DELETE FROM orders WHERE id = 1;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
         # DDL
-        ("DROP TABLE customers CASCADE;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
-        ("ALTER TABLE products ADD COLUMN backdoor TEXT;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
-        ("CREATE TABLE hacked_tbl (id INT);",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
-        ("TRUNCATE TABLE order_items;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
+        (
+            "DROP TABLE customers CASCADE;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
+        (
+            "ALTER TABLE products ADD COLUMN backdoor TEXT;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
+        (
+            "CREATE TABLE hacked_tbl (id INT);",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
+        (
+            "TRUNCATE TABLE order_items;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
         # Administrative & Permissions
-        ("GRANT ALL PRIVILEGES ON customers TO public;",
-         (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction)),
+        (
+            "GRANT ALL PRIVILEGES ON customers TO public;",
+            (errors.InsufficientPrivilege, errors.ReadOnlySqlTransaction),
+        ),
         # Protected schemas and tables
-        ("SELECT * FROM app.dq_query_history;",
-         (errors.InsufficientPrivilege,)),
-        ("SELECT * FROM pg_authid;",
-         (errors.InsufficientPrivilege,)),
-        ("SELECT * FROM pg_shadow;",
-         (errors.InsufficientPrivilege,)),
+        ("SELECT * FROM app.dq_query_history;", (errors.InsufficientPrivilege,)),
+        ("SELECT * FROM pg_authid;", (errors.InsufficientPrivilege,)),
+        ("SELECT * FROM pg_shadow;", (errors.InsufficientPrivilege,)),
     ]
 
     for sql, expected_errors in dangerous_payloads:

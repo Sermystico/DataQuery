@@ -36,7 +36,10 @@ def test_secrets_masked_in_str_and_repr() -> None:
     assert settings.POSTGRES_OWNER_PASSWORD.get_secret_value() == "dq_owner_dev_pw"
     assert settings.POSTGRES_READONLY_PASSWORD.get_secret_value() == "dq_readonly_dev_pw"
     assert settings.POSTGRES_APP_PASSWORD.get_secret_value() == "dq_app_dev_pw"
-    assert settings.ANTHROPIC_API_KEY.get_secret_value() == "mock-dev-key-not-active" or settings.ANTHROPIC_API_KEY.get_secret_value() == "mock-dev-key"
+    assert (
+        settings.ANTHROPIC_API_KEY.get_secret_value() == "mock-dev-key-not-active"
+        or settings.ANTHROPIC_API_KEY.get_secret_value() == "mock-dev-key"
+    )
 
 
 @pytest.mark.unit

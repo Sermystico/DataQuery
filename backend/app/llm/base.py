@@ -1,4 +1,4 @@
-﻿"""Base models and protocols for LLM provider integrations in DataQuery."""
+"""Base models and protocols for LLM provider integrations in DataQuery."""
 
 from typing import Any, Protocol, runtime_checkable
 
@@ -30,7 +30,9 @@ class SQLGeneration(BaseModel):
             self.sql = self.sql.strip()
         else:
             if not self.reason or not self.reason.strip():
-                raise ValueError("When supported is False, 'reason' must be provided and non-empty.")
+                raise ValueError(
+                    "When supported is False, 'reason' must be provided and non-empty."
+                )
             self.reason = self.reason.strip()
         return self
 
@@ -39,7 +41,7 @@ class SQLGeneration(BaseModel):
 class LLMProvider(Protocol):
     """Protocol defining the required capabilities of an LLM provider."""
 
-    def generate_sql(self, question: str, schema_context: str) -> SQLGeneration:
+    def generate_sql(self, question: str, schema_context: str | None = None) -> SQLGeneration:
         """Translate a natural language question into structured SQL generation output."""
         ...
 
@@ -48,7 +50,8 @@ class LLMProvider(Protocol):
         question: str,
         columns: list[str],
         rows: list[list[Any]],
-        sql: str,
+        row_count: int | None = None,
+        sql: str | None = None,
     ) -> str:
-        """Generate a natural language explanation of query results (Implemented in Phase 6)."""
+        """Generate a natural language explanation of query results based on actual data."""
         ...

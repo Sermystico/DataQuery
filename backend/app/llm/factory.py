@@ -1,4 +1,4 @@
-﻿"""Factory function for instantiating the configured LLMProvider."""
+"""Factory function for instantiating the configured LLMProvider."""
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError

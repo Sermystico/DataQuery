@@ -34,9 +34,7 @@ def test_api_v1_health_ok(client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_health_503_when_database_down(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_health_503_when_database_down(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify health endpoint returns 503 with standard envelope when DB engine points to bad host."""
 
     def mock_bad_host_connect(*args: object, **kwargs: object) -> None:
@@ -56,6 +54,9 @@ def test_health_503_when_database_down(
     # Standard error envelope structure
     assert "error" in data
     assert data["error"]["code"] == "DATABASE_UNAVAILABLE"
-    assert "database" in data["error"]["message"].lower() or "connection" in data["error"]["message"].lower()
+    assert (
+        "database" in data["error"]["message"].lower()
+        or "connection" in data["error"]["message"].lower()
+    )
     assert "request_id" in data
     assert response.headers["X-Request-ID"] == data["request_id"]

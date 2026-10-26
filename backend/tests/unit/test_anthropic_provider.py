@@ -1,4 +1,4 @@
-﻿"""Unit tests for AnthropicProvider using a faked Anthropic SDK client."""
+"""Unit tests for AnthropicProvider using a faked Anthropic SDK client."""
 
 import os
 from unittest.mock import MagicMock
@@ -193,11 +193,35 @@ def test_anthropic_provider_unexpected_exception(fake_client: MagicMock) -> None
 
 
 @pytest.mark.unit
-def test_anthropic_provider_explain_raises_not_implemented() -> None:
-    """Verify explain() raises NotImplementedError for Phase 6."""
-    provider = AnthropicProvider(api_key="fake-key", client=MagicMock())
-    with pytest.raises(NotImplementedError, match="Phase 6"):
-        provider.explain("question", ["col"], [[1]], "SELECT 1")
+def test_anthropic_provider_explain_success() -> None:
+    """Verify explain() invokes messages.create with short tokens and returns explanation text."""
+    fake_client = MagicMock()
+    mock_block = MagicMock()
+    mock_block.type = "text"
+    mock_block.text = "The total revenue was $1,500."
+    fake_response = MagicMock()
+    fake_response.content = [mock_block]
+    fake_client.messages.create.return_value = fake_response
+
+    provider = AnthropicProvider(api_key="fake-key", client=fake_client)
+    res = provider.explain("What is total revenue?", ["total_revenue"], [[1500.0]], 1)
+
+    assert res == "The total revenue was $1,500."
+    fake_client.messages.create.assert_called_once()
+    call_kwargs = fake_client.messages.create.call_args[1]
+    assert call_kwargs["max_tokens"] <= 250
+    assert "system" in call_kwargs
+
+
+@pytest.mark.unit
+def test_anthropic_provider_explain_failure_raises_llm_unavailable() -> None:
+    """Verify explain() maps client exceptions to LLMUnavailable."""
+    fake_client = MagicMock()
+    fake_client.messages.create.side_effect = Exception("Anthropic API down")
+
+    provider = AnthropicProvider(api_key="fake-key", client=fake_client)
+    with pytest.raises(LLMUnavailable, match="failed to generate explanation"):
+        provider.explain("What is total revenue?", ["total_revenue"], [[1500.0]], 1)
 
 
 @pytest.mark.live

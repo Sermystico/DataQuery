@@ -1,4 +1,4 @@
-﻿"""Integration tests for query_executor and POST /api/v1/sql/validate."""
+"""Integration tests for query_executor and POST /api/v1/sql/validate."""
 
 import pytest
 from fastapi.testclient import TestClient

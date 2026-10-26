@@ -92,15 +92,22 @@ def execute_query(
 
                 columns = list(cursor_result.keys()) if cursor_result.returns_rows else []
                 # Fetch up to row_limit + 1 to detect if results exceed the limit
-                raw_rows = cursor_result.fetchmany(row_limit + 1) if cursor_result.returns_rows else []
+                raw_rows = (
+                    cursor_result.fetchmany(row_limit + 1) if cursor_result.returns_rows else []
+                )
 
     except OperationalError as ex:
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         err_str = str(ex).lower()
-        logger.exception("Operational error during read-only SQL execution (%.2fms): %s", duration_ms, ex)
+        logger.exception(
+            "Operational error during read-only SQL execution (%.2fms): %s", duration_ms, ex
+        )
 
         # 1. Statement Timeout check
-        if "statement timeout" in err_str or "canceling statement due to statement timeout" in err_str:
+        if (
+            "statement timeout" in err_str
+            or "canceling statement due to statement timeout" in err_str
+        ):
             raise QueryTimeout(
                 message="Database query cancelled: execution exceeded statement timeout.",
                 details={"statement_timeout_ms": timeout_ms},
@@ -130,7 +137,9 @@ def execute_query(
 
     except Exception as ex:
         duration_ms = (time.perf_counter() - start_time) * 1000.0
-        logger.exception("Unexpected error during read-only SQL execution (%.2fms): %s", duration_ms, ex)
+        logger.exception(
+            "Unexpected error during read-only SQL execution (%.2fms): %s", duration_ms, ex
+        )
         raise AppError(
             message="Database query execution error occurred.",
             code="DATABASE_ERROR",

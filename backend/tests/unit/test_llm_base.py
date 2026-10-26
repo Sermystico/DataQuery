@@ -42,4 +42,3 @@ def test_sql_generation_unsupported_missing_reason_raises() -> None:
 
     with pytest.raises(ValidationError, match="must be provided"):
         SQLGeneration(supported=False, reason="   ")
-

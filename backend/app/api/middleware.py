@@ -21,9 +21,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     - Emits structured access log line with latency and status.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         start_time = time.perf_counter()
 
         # Extract or generate request ID

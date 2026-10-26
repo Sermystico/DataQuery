@@ -1,4 +1,4 @@
-﻿"""Integration tests for POST /api/v1/query endpoint using MockLLMProvider."""
+"""Integration tests for POST /api/v1/query endpoint using MockLLMProvider."""
 
 import psycopg
 import pytest
@@ -105,7 +105,9 @@ def test_query_unsafe_sql_mode_rejected_and_tables_unchanged(client: TestClient)
 
     # Verify all 5 table counts remain invariant
     after_counts = _get_table_counts()
-    assert initial_counts == after_counts, "Database tables were modified during unsafe query execution!"
+    assert initial_counts == after_counts, (
+        "Database tables were modified during unsafe query execution!"
+    )
 
 
 @pytest.mark.integration
@@ -121,7 +123,9 @@ def test_query_garbage_mode_handled_safely(client: TestClient) -> None:
         data = response.json()
         assert data["status"] == "rejected"
         assert len(data["rejection_reasons"]) > 0
-        assert any("syntax" in r.lower() or "tokenization" in r.lower() for r in data["rejection_reasons"])
+        assert any(
+            "syntax" in r.lower() or "tokenization" in r.lower() for r in data["rejection_reasons"]
+        )
     finally:
         app.dependency_overrides.clear()
 

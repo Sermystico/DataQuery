@@ -1,4 +1,4 @@
-﻿"""LLM provider interfaces, prompts, and implementations package."""
+"""LLM provider interfaces, prompts, and implementations package."""
 
 from app.llm.anthropic_provider import AnthropicProvider
 from app.llm.base import LLMProvider, SQLGeneration

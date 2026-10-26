@@ -1,21 +1,28 @@
-﻿"""Natural language query orchestration service for DataQuery.
+"""Natural language query orchestration service for DataQuery.
 
 Orchestrates the end-to-end analytics workflow:
 1. Translates natural language into SQL via LLMProvider (or Mock).
 2. Validates the generated SQL using SQLGlot AST security policies.
 3. Executes validated SQL strictly within the read-only transaction under dq_readonly.
-4. Packages results into the standard QueryResponse model.
+4. Formats results to JSON-safe data types and generates visualization chart hints.
+5. Generates human-readable explanations strictly from returned data.
+6. Records execution audit metadata in app.query_history using dq_app role.
+7. Packages results into the standard QueryResponse model.
 """
 
 import time
 
 from app.core.config import Settings, get_settings
+from app.core.errors import AppError
 from app.core.logging import get_logger
+from app.db.history_repo import record_query_history
 from app.llm.base import LLMProvider, SQLGeneration
 from app.llm.factory import get_provider
 from app.schemas.query import QueryResponse
 from app.security.query_executor import ExecutionResult, execute_query
 from app.security.sql_validator import ValidatedSQL, ValidationResult, validate_sql
+from app.services.explainer import generate_explanation
+from app.services.formatter import format_result
 
 logger = get_logger("app.services.query_service")
 
@@ -88,7 +95,10 @@ def run_query(
     """Orchestrate the full natural language query workflow.
 
     Never executes queries that fail security validation or are marked unsupported.
+    History is recorded reliably for success, unsupported, and rejected outcomes.
     """
+    overall_start = time.perf_counter()
+
     if settings is None:
         settings = get_settings()
     if provider is None:
@@ -99,7 +109,19 @@ def run_query(
 
     if not generation.supported:
         reason_msg = generation.reason or "The question is not supported by the database domain."
+        duration_ms = (time.perf_counter() - overall_start) * 1000.0
         logger.info("[request_id=%s] Query marked unsupported: %s", request_id, reason_msg)
+
+        history_id = record_query_history(
+            request_id=request_id,
+            question=question,
+            status="unsupported",
+            sql=None,
+            row_count=None,
+            error_code="UNSUPPORTED_QUESTION",
+            duration_ms=duration_ms,
+        )
+
         return QueryResponse(
             status="unsupported",
             question=question,
@@ -112,6 +134,7 @@ def run_query(
             chart_hint=None,
             explanation_source="none",
             request_id=request_id,
+            history_id=history_id,
             rejection_reasons=[reason_msg],
         )
 
@@ -121,11 +144,23 @@ def run_query(
     validation, _ = _validate_sql_step(generation.sql, settings.MAX_RESULT_ROWS, request_id)
 
     if not validation.valid:
+        duration_ms = (time.perf_counter() - overall_start) * 1000.0
         logger.warning(
             "[request_id=%s] Query rejected by SQL validation policy. Reasons: %s",
             request_id,
             validation.reasons,
         )
+
+        history_id = record_query_history(
+            request_id=request_id,
+            question=question,
+            status="rejected",
+            sql=generation.sql,
+            row_count=None,
+            error_code="VALIDATION_REJECTED",
+            duration_ms=duration_ms,
+        )
+
         return QueryResponse(
             status="rejected",
             question=question,
@@ -138,30 +173,83 @@ def run_query(
             chart_hint=None,
             explanation_source="none",
             request_id=request_id,
+            history_id=history_id,
             rejection_reasons=validation.reasons,
         )
 
     # Step 3: Read-Only Database Execution
-    # Only ValidatedSQL is accepted by execute_query
-    assert validation.validated_sql is not None, "Valid validation result must contain ValidatedSQL token."
-    exec_result, _ = _execute_query_step(
-        validation.validated_sql,
-        settings.MAX_RESULT_ROWS,
-        request_id,
+    assert validation.validated_sql is not None, (
+        "Valid validation result must contain ValidatedSQL token."
+    )
+    try:
+        exec_result, _ = _execute_query_step(
+            validation.validated_sql,
+            settings.MAX_RESULT_ROWS,
+            request_id,
+        )
+    except AppError as exc:
+        duration_ms = (time.perf_counter() - overall_start) * 1000.0
+        record_query_history(
+            request_id=request_id,
+            question=question,
+            status="error",
+            sql=validation.normalized_sql,
+            row_count=None,
+            error_code=exc.code,
+            duration_ms=duration_ms,
+        )
+        raise
+    except Exception:
+        duration_ms = (time.perf_counter() - overall_start) * 1000.0
+        record_query_history(
+            request_id=request_id,
+            question=question,
+            status="error",
+            sql=validation.normalized_sql,
+            row_count=None,
+            error_code="INTERNAL_ERROR",
+            duration_ms=duration_ms,
+        )
+        raise
+
+    # Step 4: Format results to JSON-safe types and determine chart hints
+    formatted_rows, chart_hint = format_result(exec_result.columns, exec_result.rows)
+
+    # Step 5: Generate explanation from actual results
+    answer, explanation_source = generate_explanation(
+        question=question,
+        columns=exec_result.columns,
+        rows=formatted_rows,
+        row_count=len(formatted_rows),
+        provider=provider,
+        include_explanation=include_explanation,
     )
 
-    # Step 4: Assemble Final Response (Explanations deferred to Phase 6)
+    # Step 6: Record successful execution in history
+    duration_ms = (time.perf_counter() - overall_start) * 1000.0
+    history_id = record_query_history(
+        request_id=request_id,
+        question=question,
+        status="success",
+        sql=validation.normalized_sql,
+        row_count=len(formatted_rows),
+        error_code=None,
+        duration_ms=duration_ms,
+    )
+
+    # Step 7: Return final QueryResponse
     return QueryResponse(
         status="success",
         question=question,
-        answer=None,  # Implemented in Phase 6
+        answer=answer,
         sql=validation.normalized_sql,
         columns=exec_result.columns,
-        rows=exec_result.rows,
-        row_count=len(exec_result.rows),
+        rows=formatted_rows,
+        row_count=len(formatted_rows),
         truncated=exec_result.truncated,
-        chart_hint=None,  # Implemented in Phase 6
-        explanation_source="none",  # Implemented in Phase 6
+        chart_hint=chart_hint,
+        explanation_source=explanation_source,
         request_id=request_id,
+        history_id=history_id,
         rejection_reasons=[],
     )

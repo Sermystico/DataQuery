@@ -199,7 +199,9 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
     if len(non_empty_stmts) > 1:
         return ValidationResult(
             valid=False,
-            reasons=[f"Multiple statements detected ({len(non_empty_stmts)}). Only single queries are permitted."],
+            reasons=[
+                f"Multiple statements detected ({len(non_empty_stmts)}). Only single queries are permitted."
+            ],
         )
 
     ast = non_empty_stmts[0]
@@ -216,7 +218,9 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
     if not isinstance(ast, (exp.Select, exp.Union)):
         return ValidationResult(
             valid=False,
-            reasons=[f"Root statement type '{type(ast).__name__}' is not permitted. Only SELECT queries are allowed."],
+            reasons=[
+                f"Root statement type '{type(ast).__name__}' is not permitted. Only SELECT queries are allowed."
+            ],
         )
 
     # 4. AST Traversal: Check for Forbidden Nodes anywhere in the tree
@@ -243,7 +247,9 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
         # Check for forbidden nodes inside CTE body
         for subnode in cte.this.walk():
             if isinstance(subnode, _FORBIDDEN_AST_NODES):
-                reasons.append(f"Forbidden operation '{type(subnode).__name__}' inside CTE '{cte.alias_or_name}'.")
+                reasons.append(
+                    f"Forbidden operation '{type(subnode).__name__}' inside CTE '{cte.alias_or_name}'."
+                )
 
     # 7. Validate Table and Schema References
     cte_names = {cte.alias_or_name.lower() for cte in ast.find_all(exp.CTE) if cte.alias_or_name}
@@ -258,8 +264,12 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
                 reasons.append(
                     f"Access to schema '{schema_name}' is not permitted. Only 'public' or unqualified tables are allowed."
                 )
-            if schema_name in {"pg_catalog", "information_schema", "app"} or schema_name.startswith("pg_"):
-                reasons.append(f"Access to restricted schema '{schema_name}' is strictly forbidden.")
+            if schema_name in {"pg_catalog", "information_schema", "app"} or schema_name.startswith(
+                "pg_"
+            ):
+                reasons.append(
+                    f"Access to restricted schema '{schema_name}' is strictly forbidden."
+                )
 
         # Check table name
         if t_name in cte_names:

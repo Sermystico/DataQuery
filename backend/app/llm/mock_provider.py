@@ -1,4 +1,4 @@
-﻿"""Deterministic Mock LLM provider with failure-injection modes and golden query registry."""
+"""Deterministic Mock LLM provider with failure-injection modes and golden query registry."""
 
 import re
 from typing import Any, Literal
@@ -7,7 +7,7 @@ from app.core.errors import LLMUnavailable
 from app.llm.base import SQLGeneration
 from app.llm.golden_queries import GOLDEN_QUERIES
 
-MockMode = Literal["normal", "raise", "garbage", "unsafe_sql", "unsupported"]
+MockMode = Literal["normal", "raise", "garbage", "unsafe_sql", "unsupported", "raise_explain"]
 
 
 def normalize_query_text(text: str) -> str:
@@ -18,12 +18,12 @@ def normalize_query_text(text: str) -> str:
 class MockLLMProvider:
     """Deterministic LLM provider mapping canonical business questions to verified SQL."""
 
-    def __init__(self, mode: MockMode = "normal") -> None:
+    def __init__(self, mode: MockMode = "normal", explain_fail: bool = False) -> None:
         self.mode = mode
+        self.explain_fail = explain_fail
         # Build normalized lookup dictionary
         self._registry: dict[str, str] = {
-            normalize_query_text(item.question): item.sql
-            for item in GOLDEN_QUERIES
+            normalize_query_text(item.question): item.sql for item in GOLDEN_QUERIES
         }
 
     def generate_sql(self, question: str, schema_context: str | None = None) -> SQLGeneration:
@@ -94,9 +94,33 @@ class MockLLMProvider:
         question: str,
         columns: list[str],
         rows: list[list[Any]],
-        sql: str,
+        row_count: int | None = None,
+        sql: str | None = None,
     ) -> str:
-        """Phase 6 placeholder for natural language explanation generation."""
-        raise NotImplementedError(
-            "Natural language result explanations are deferred to Phase 6 implementation."
+        """Generate deterministic plain-English summary from actual returned data."""
+        if self.mode == "raise_explain" or self.explain_fail:
+            raise LLMUnavailable(
+                message="Simulated upstream explanation failure.",
+                details={"mode": "raise_explain", "provider": "mock"},
+            )
+
+        total_rows = row_count if row_count is not None else len(rows)
+        if total_rows == 0:
+            return "No rows matched this question."
+
+        if total_rows == 1 and len(columns) == 1:
+            col_name = columns[0].replace("_", " ")
+            return f"The calculated {col_name} is {rows[0][0]}."
+
+        if total_rows == 1 and len(columns) > 1:
+            parts = [f"{c.replace('_', ' ')}: {rows[0][i]}" for i, c in enumerate(columns)]
+            return f"The result is {', '.join(parts)}."
+
+        # Multiple rows
+        col0 = columns[0].replace("_", " ")
+        top_val = rows[0][0]
+        val_str = f" with {columns[1].replace('_', ' ')} {rows[0][1]}" if len(columns) > 1 else ""
+        return (
+            f"The query returned {total_rows} records. "
+            f"The top result is {top_val} for {col0}{val_str}."
         )

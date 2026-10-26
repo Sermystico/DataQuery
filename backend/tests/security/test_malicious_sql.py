@@ -87,8 +87,8 @@ MALICIOUS_PAYLOADS = [
     "LOCK TABLE customers IN ACCESS EXCLUSIVE MODE",
     # --- Obfuscation, Unicode & Null Bytes ---
     "SELECT 'test' \x00 'injection'",
-    "SELECT * FROM customers \u003B DROP TABLE orders",
-    "SELECT \u002A FROM \u0070\u0067\u005F\u0073\u0068\u0061\u0064\u006F\u0077",
+    "SELECT * FROM customers \u003b DROP TABLE orders",
+    "SELECT \u002a FROM \u0070\u0067\u005f\u0073\u0068\u0061\u0064\u006f\u0077",
     "SELECT $$pg_shadow$$ FROM customers",
 ]
 
@@ -106,4 +106,6 @@ def test_malicious_payloads_strictly_rejected(payload: str) -> None:
     result = validate_sql(payload)
     assert result.valid is False, f"Vulnerability: Payload was accepted! SQL: {payload}"
     assert len(result.reasons) > 0, f"Rejected payload had no explanatory reasons: {payload}"
-    assert result.validated_sql is None, f"Rejected payload must not yield ValidatedSQL token: {payload}"
+    assert result.validated_sql is None, (
+        f"Rejected payload must not yield ValidatedSQL token: {payload}"
+    )

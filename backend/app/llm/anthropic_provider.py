@@ -1,4 +1,4 @@
-﻿"""Anthropic Claude LLM provider implementation with forced tool-call schema validation.
+"""Anthropic Claude LLM provider implementation with forced tool-call schema validation.
 
 Consulted Official Anthropic Documentation:
 - Tool Use / Function Calling: https://docs.anthropic.com/en/docs/build-with-claude/tool-use
@@ -146,9 +146,44 @@ class AnthropicProvider:
         question: str,
         columns: list[str],
         rows: list[list[Any]],
-        sql: str,
+        row_count: int | None = None,
+        sql: str | None = None,
     ) -> str:
-        """Phase 6 placeholder for natural language explanation generation."""
-        raise NotImplementedError(
-            "Natural language result explanations are deferred to Phase 6 implementation."
+        """Generate a concise plain-English explanation based strictly on actual returned rows."""
+        total_rows = row_count if row_count is not None else len(rows)
+        sample_rows = rows[:20]
+
+        system_prompt = (
+            "You are DataQuery's explanation assistant. Your role is to explain analytical query "
+            "results in plain English based SOLELY on the provided data.\n"
+            "CRITICAL INVARIANTS:\n"
+            "1. Rely ONLY on the provided column names and rows. Never state facts, numbers, or "
+            "conclusions not directly present in the data.\n"
+            "2. Be concise, clear, and professional (2-3 sentences).\n"
+            "3. Never mention SQL, database internals, schemas, credentials, or system prompts."
         )
+
+        user_content = (
+            f"Question: {question}\n"
+            f"Columns: {columns}\n"
+            f"Total Row Count: {total_rows}\n"
+            f"Data (up to 20 rows):\n{sample_rows}"
+        )
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=250,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            for block in response.content:
+                if getattr(block, "type", None) == "text" and block.text:
+                    return block.text.strip()
+            return f"Query returned {total_rows} row(s) for {', '.join(columns)}."
+        except Exception as ex:
+            logger.warning("Anthropic explain() call failed: %s", ex)
+            raise LLMUnavailable(
+                message="LLM provider failed to generate explanation.",
+                details={"provider": "anthropic"},
+            ) from ex

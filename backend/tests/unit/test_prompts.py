@@ -1,4 +1,4 @@
-﻿"""Unit tests for system prompt construction and prompt security."""
+"""Unit tests for system prompt construction and prompt security."""
 
 import pytest
 

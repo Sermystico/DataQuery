@@ -8,17 +8,17 @@ from pydantic import BaseModel, Field, field_validator
 class ChartHint(BaseModel):
     """Recommended visualization layout for query results."""
 
-    chart_type: Literal["bar", "line", "pie", "table"] = Field(
+    type: Literal["bar", "line", "none"] = Field(
         ...,
-        description="Recommended chart presentation style",
+        description="Recommended chart presentation style: 'bar', 'line', or 'none'",
         examples=["bar"],
     )
-    x_column: str | None = Field(
+    x_key: str | None = Field(
         default=None,
         description="Column name for the independent variable / X axis",
         examples=["region"],
     )
-    y_column: str | None = Field(
+    y_key: str | None = Field(
         default=None,
         description="Column name for the dependent variable / Y axis",
         examples=["total_revenue"],
@@ -28,6 +28,21 @@ class ChartHint(BaseModel):
         description="Suggested chart title",
         examples=["Revenue by Customer Region"],
     )
+
+    @property
+    def chart_type(self) -> str:
+        return self.type
+
+    @property
+    def x_column(self) -> str | None:
+        return self.x_key
+
+    @property
+    def y_column(self) -> str | None:
+        return self.y_key
+
+    def __bool__(self) -> bool:
+        return self.type != "none"
 
 
 class QueryRequest(BaseModel):
@@ -112,10 +127,10 @@ class QueryResponse(BaseModel):
         description="Traceable request identifier",
         examples=["req_01h8v1b5p7k"],
     )
-    history_id: str | None = Field(
+    history_id: int | None = Field(
         default=None,
         description="Database audit log ID for this query execution",
-        examples=["qry_01h8v1b5p7k"],
+        examples=[1],
     )
     rejection_reasons: list[str] = Field(
         default_factory=list,

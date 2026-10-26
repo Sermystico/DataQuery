@@ -1,4 +1,4 @@
-﻿"""Unit tests for MockLLMProvider and golden query registry."""
+"""Unit tests for MockLLMProvider and golden query registry."""
 
 import pytest
 
@@ -19,7 +19,9 @@ def test_at_least_25_golden_queries_defined() -> None:
 def test_every_golden_query_passes_sql_validation(item) -> None:
     """Verify every single golden SQL query strictly passes sql_validator."""
     validation = validate_sql(item.sql)
-    assert validation.valid is True, f"Golden query {item.id} failed validation: {validation.reasons}"
+    assert validation.valid is True, (
+        f"Golden query {item.id} failed validation: {validation.reasons}"
+    )
     assert validation.normalized_sql is not None
     assert validation.validated_sql is not None
 
@@ -84,14 +86,41 @@ def test_mock_provider_failure_modes() -> None:
 
     # 4. Unsupported mode
     unsupported_provider = MockLLMProvider(mode="unsupported")
-    unsupported_res = unsupported_provider.generate_sql("What is the total revenue across all completed orders?")
+    unsupported_res = unsupported_provider.generate_sql(
+        "What is the total revenue across all completed orders?"
+    )
     assert unsupported_res.supported is False
     assert "forced into unsupported" in unsupported_res.reason
 
 
 @pytest.mark.unit
-def test_mock_provider_explain_raises_not_implemented() -> None:
-    """Verify explain() raises NotImplementedError for Phase 6."""
+def test_mock_provider_explain_deterministic() -> None:
+    """Verify explain() returns deterministic text for single value, multiple rows, and empty results."""
     provider = MockLLMProvider()
-    with pytest.raises(NotImplementedError, match="Phase 6"):
-        provider.explain("question", ["col"], [[1]], "SELECT 1")
+
+    # Empty result
+    assert provider.explain("question", ["col"], [], 0) == "No rows matched this question."
+
+    # Single value
+    res_single = provider.explain("question", ["total_revenue"], [[1234.5]], 1)
+    assert "total revenue" in res_single
+    assert "1234.5" in res_single
+
+    # Multiple rows
+    res_multi = provider.explain(
+        "question", ["region", "revenue"], [["EMEA", 500.0], ["APAC", 300.0]], 2
+    )
+    assert "2 records" in res_multi
+    assert "EMEA" in res_multi
+
+
+@pytest.mark.unit
+def test_mock_provider_explain_failure_injection() -> None:
+    """Verify explain() failure modes raise LLMUnavailable."""
+    fail_provider = MockLLMProvider(mode="raise_explain")
+    with pytest.raises(LLMUnavailable, match="Simulated upstream explanation failure"):
+        fail_provider.explain("question", ["col"], [[1]], 1)
+
+    flag_fail_provider = MockLLMProvider(explain_fail=True)
+    with pytest.raises(LLMUnavailable, match="Simulated upstream explanation failure"):
+        flag_fail_provider.explain("question", ["col"], [[1]], 1)

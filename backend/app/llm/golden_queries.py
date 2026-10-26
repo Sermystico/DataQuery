@@ -1,4 +1,4 @@
-﻿"""Canonical registry of golden business questions and their reference SQL queries.
+"""Canonical registry of golden business questions and their reference SQL queries.
 
 This module provides the deterministic ground-truth query mappings used by
 MockLLMProvider and by evaluation suites. All SQL queries conform strictly

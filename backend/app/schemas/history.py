@@ -1,43 +1,51 @@
-"""Pydantic schemas for query execution history and audit logs."""
+"""Pydantic schemas for query execution history."""
+
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
 
-class HistoryItem(BaseModel):
-    """A single record from the query execution audit log."""
+class QueryHistoryItem(BaseModel):
+    """Historical record of an analytics query execution."""
 
-    id: str = Field(..., description="Unique query execution identifier", examples=["qry_01h8v1b5p7k"])
-    question: str = Field(..., description="Original user natural language question")
-    sql_preview: str | None = Field(
-        default=None,
-        description="Truncated preview of the generated SQL",
+    id: int = Field(..., description="Unique history record identifier", examples=[1])
+    request_id: str = Field(
+        ..., description="Traceable request identifier", examples=["req_01h8v1b5p7k"]
+    )
+    created_at: datetime = Field(..., description="Timestamp when the query was received")
+    question: str = Field(
+        ...,
+        description="Original user natural language question",
+        examples=["Total revenue by region?"],
     )
     status: str = Field(
         ...,
-        description="Query lifecycle status: SUCCESS, VALIDATION_ERROR, DB_ERROR",
-        examples=["SUCCESS"],
+        description="Execution status: 'success', 'unsupported', 'rejected', or 'error'",
+        examples=["success"],
     )
-    execution_time_ms: int | None = Field(
-        default=None,
-        description="Total database execution duration in milliseconds",
-        examples=[45],
-    )
+    sql: str | None = Field(default=None, description="Executed or rejected SQL statement")
     row_count: int | None = Field(
-        default=None,
-        description="Number of rows returned by the query",
-        examples=[5],
+        default=None, description="Number of rows returned for successful executions"
     )
-    created_at: str = Field(
-        ...,
-        description="ISO-8601 execution timestamp",
-        examples=["2026-10-25T11:45:00Z"],
+    error_code: str | None = Field(
+        default=None, description="High-level error code if the query failed or was rejected"
+    )
+    duration_ms: float | None = Field(
+        default=None, description="Total pipeline latency in milliseconds"
     )
 
 
-class HistoryListResponse(BaseModel):
-    """Paginated list of query history records."""
+class HistoryResponse(BaseModel):
+    """Paginated list of historical query executions."""
 
-    items: list[HistoryItem] = Field(default_factory=list, description="Page of history items")
-    limit: int = Field(default=20, description="Max items per page")
-    offset: int = Field(default=0, description="Starting offset index")
-    total: int = Field(default=0, description="Total history records available")
+    items: list[QueryHistoryItem] = Field(
+        default_factory=list, description="Historical query execution records"
+    )
+    total: int = Field(..., description="Total number of query history records matching filters")
+    limit: int = Field(..., description="Maximum records returned in this page")
+    offset: int = Field(..., description="Number of records skipped")
+
+
+# Aliases for backward compatibility
+HistoryItem = QueryHistoryItem
+HistoryListResponse = HistoryResponse

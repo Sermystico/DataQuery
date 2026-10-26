@@ -197,9 +197,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     )
 
 
-async def validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle Pydantic request validation errors (422) with standard envelope."""
     request_id = _get_request_id(request)
     # Sanitize validation errors to clean JSON
@@ -224,9 +222,7 @@ async def validation_error_handler(
     )
 
 
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Handle generic Starlette/FastAPI HTTPExceptions with standard envelope."""
     request_id = _get_request_id(request)
     status_code_map = {

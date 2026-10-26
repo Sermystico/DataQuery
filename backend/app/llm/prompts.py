@@ -1,4 +1,4 @@
-﻿"""System prompt generation and prompt templates for DataQuery LLM translation."""
+"""System prompt generation and prompt templates for DataQuery LLM translation."""
 
 from app.core.config import Settings, get_settings
 from app.schemas.schema import SchemaResponse

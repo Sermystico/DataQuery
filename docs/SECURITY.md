@@ -179,3 +179,35 @@ While AST parsing using `sqlglot` is vastly superior to regex filtering, enginee
 4. **Aliasing and Complex Subquery Obfuscation**:
    - In complex subqueries with deeply nested table aliases (`FROM (SELECT ... AS t1) AS t2`), naive AST walkers can misidentify table references if not traversing alias scopes correctly.
    - *Mitigation*: Use `sqlglot.optimizer.qualify_tables` to normalize and resolve all table bindings across subqueries and CTEs before allowlist checking.
+
+---
+
+## 5. Phase 6 Security Controls: Role Isolation, Explanations, and Audit Privacy
+
+### 5.1. Database Role Segregation & Schema Permissions
+DataQuery enforces strict multi-role privilege segregation across schemas:
+- **`dq_owner`**: High-privilege role used exclusively during Alembic migrations. Owns the `public` and `app` schemas, tables, and sequence generators.
+- **`dq_readonly`**: Restricted analytical query execution role:
+  - Granted `USAGE` on `public` schema and `SELECT` exclusively on the 5 analytics tables (`customers`, `products`, `orders`, `order_items`, `payments`).
+  - Has zero access to the `app` schema. Explicitly revoked from `app.query_history` and `pg_*` system authentication catalogs (`pg_shadow`, `pg_authid`).
+  - Enforced `default_transaction_read_only = on` and `statement_timeout = 3000ms`.
+- **`dq_app`**: Application engine role used for operational metadata:
+  - Granted `USAGE` on the `app` schema, and `INSERT, SELECT` exclusively on `app.query_history` alongside identity sequence permissions.
+  - Has zero access (`REVOKE ALL`) on public analytics tables.
+
+### 5.2. Explainer Context & Anti-Hallucination Isolation
+When natural language explanations are synthesized from query results:
+1. **Zero SQL & Infrastructure Leakage**: The LLM provider is never passed the generated SQL statement, database connection parameters, credentials, or internal error objects.
+2. **Strictly Data-Bounded Context**: The explainer prompt passes only the user question, column names, total row count, and at most the first 20 formatted data rows.
+3. **Anti-Hallucination Guardrail**: The system prompt strictly prohibits stating facts, figures, or conclusions not directly present in the provided sample rows.
+4. **Empty-Result Bypass**: When a query yields 0 rows, the LLM provider is completely bypassed. A deterministic string (`"No rows matched this question."`) is returned with `explanation_source = "fallback"`, eliminating hallucination opportunities on negative results.
+5. **Provider Failure Resilience**: If the LLM provider fails or times out, a deterministic fallback summary is derived from the data row count and top record with `explanation_source = "fallback"`, ensuring successful query data is never withheld from the client.
+
+### 5.3. Audit History Retention & Privacy Protection
+The audit log stored in `app.query_history` adheres to strict data minimization principles:
+- **No Raw Data Rows Stored**: Tabular results, customer personal data, and business numbers are never persisted in the history table.
+- **Credential Protection**: API keys, passwords, and server environment variables are never logged or stored.
+- **Safe Parameter Binding**: All history insertions and queries use parameterized SQL via SQLAlchemy (`:request_id`, `:question`, etc.).
+- **Truncation Guard**: The stored user question is capped at 500 characters to prevent database bloat.
+- **Fault-Tolerant Non-Blocking Logging**: Any history database failure is safely caught and logged server-side, returning `history_id: null` in the query response without failing the user's analytical query.
+
