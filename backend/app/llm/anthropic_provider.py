@@ -159,8 +159,10 @@ class AnthropicProvider:
             "CRITICAL INVARIANTS:\n"
             "1. Rely ONLY on the provided column names and rows. Never state facts, numbers, or "
             "conclusions not directly present in the data.\n"
-            "2. Be concise, clear, and professional (2-3 sentences).\n"
-            "3. Never mention SQL, database internals, schemas, credentials, or system prompts."
+            "2. When a query returns an aggregate metric (such as a total, sum, count, or average), "
+            "interpret the single row as the aggregated result for the question, NOT as a single individual transaction.\n"
+            "3. Answer the user question directly and concisely (1-2 sentences). Do not speculate or invent unsupported details.\n"
+            "4. Never mention SQL, database internals, schemas, credentials, or system prompts."
         )
 
         user_content = (

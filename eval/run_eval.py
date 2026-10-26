@@ -181,6 +181,7 @@ def run_negative_control(ground_truth: dict[str, dict[str, Any]]) -> dict[str, A
 def execute_evaluation(
     provider_name: str = "mock",
     cases_path: Path | None = None,
+    delay_seconds: float = 0.0,
 ) -> dict[str, Any]:
     """Execute complete evaluation suite against DataQuery API."""
     cases_file = cases_path or (EVAL_DIR / "cases.yaml")
@@ -201,6 +202,20 @@ def execute_evaluation(
                 "Cannot run live evaluation: ANTHROPIC_API_KEY is not configured in settings."
             )
         live_provider = AnthropicProvider(api_key=api_key)
+        app.dependency_overrides[get_llm_provider] = lambda: live_provider
+    elif provider_name == "gemini":
+        api_key = settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else ""
+        if not api_key:
+            raise ValueError(
+                "Cannot run live evaluation: GEMINI_API_KEY is not configured in settings."
+            )
+        if not settings.GEMINI_MODEL:
+            raise ValueError(
+                "Cannot run live evaluation: GEMINI_MODEL is not configured in settings."
+            )
+        from app.llm.gemini_provider import GeminiProvider
+
+        live_provider = GeminiProvider(api_key=api_key, model=settings.GEMINI_MODEL)
         app.dependency_overrides[get_llm_provider] = lambda: live_provider
     else:
         # Default mock provider
@@ -434,6 +449,9 @@ def execute_evaluation(
                 # Reset provider override
                 app.dependency_overrides[get_llm_provider] = lambda: MockLLMProvider(mode="normal")
 
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+
     # 4. Verify table counts remained completely unchanged
     final_counts = get_table_counts()
     table_counts_preserved = (initial_counts == final_counts)
@@ -565,9 +583,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="DataQuery Evaluation Runner (Phase 8)")
     parser.add_argument(
         "--provider",
-        choices=["mock", "anthropic"],
+        choices=["mock", "anthropic", "gemini"],
         default="mock",
         help="LLM provider for evaluation (default: mock)",
+    )
+    parser.add_argument(
+        "--delay-seconds",
+        type=float,
+        default=0.0,
+        help="Optional delay in seconds between evaluation cases for live runs (default: 0)",
     )
     parser.add_argument(
         "--cases",
@@ -605,6 +629,7 @@ def main() -> int:
     report_data = execute_evaluation(
         provider_name=args.provider,
         cases_path=args.cases,
+        delay_seconds=args.delay_seconds,
     )
 
     summary = report_data["summary"]

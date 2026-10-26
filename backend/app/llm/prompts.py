@@ -73,6 +73,7 @@ BUSINESS DEFINITIONS & CALCULATION INVARIANTS
 ================================================================================
 {biz_block}
 - IMPORTANT: Revenue must ALWAYS exclude cancelled orders (status != 'cancelled') and be calculated from order_items (quantity * unit_price). Do NOT use payments.amount as the revenue formula.
+- Completed Orders / Non-Cancelled Orders: In the orders table, status values are strictly 'placed', 'shipped', 'delivered', 'cancelled' (no 'completed' status exists in orders). In this business domain, 'completed orders' refers to all valid, non-cancelled orders (status != 'cancelled'). Queries for revenue across completed orders or total revenue MUST filter for status != 'cancelled'. Only filter for status = 'delivered' when the question explicitly asks for 'delivered orders'.
 - Undelivered orders are orders with status IN ('placed', 'shipped'). Delivered and cancelled orders are excluded.
 
 ================================================================================

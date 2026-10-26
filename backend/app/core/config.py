@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "mock"
     ANTHROPIC_API_KEY: SecretStr = SecretStr("mock-dev-key")
     LLM_MODEL: str = "claude-3-5-sonnet-20241022"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_TIMEOUT_SECONDS: float = Field(
+        default=120.0, gt=0, description="Ollama request timeout in seconds"
+    )
+    GEMINI_API_KEY: SecretStr = SecretStr("")
+    GEMINI_MODEL: str | None = Field(
+        default=None, description="Gemini model identifier (must be specified via GEMINI_MODEL)"
+    )
+    GEMINI_TIMEOUT_SECONDS: float = Field(
+        default=30.0, gt=0, description="Gemini request timeout in seconds"
+    )
 
     # Analytics Context Settings
     ANALYTICS_AS_OF_DATE: str = "2024-11-01T00:00:00Z"

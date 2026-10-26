@@ -37,6 +37,8 @@ def test_system_prompt_contains_mandatory_elements() -> None:
     assert settings.POSTGRES_READONLY_PASSWORD.get_secret_value() not in prompt
     assert settings.POSTGRES_APP_PASSWORD.get_secret_value() not in prompt
     assert settings.ANTHROPIC_API_KEY.get_secret_value() not in prompt
+    if settings.GEMINI_API_KEY.get_secret_value():
+        assert settings.GEMINI_API_KEY.get_secret_value() not in prompt
 
 
 @pytest.mark.unit
@@ -46,3 +48,12 @@ def test_system_prompt_does_not_contain_user_question() -> None:
     # Ensure there is no placeholder or prompt string interpolation for user question
     assert "{question}" not in prompt
     assert "{user_question}" not in prompt
+
+
+@pytest.mark.unit
+def test_system_prompt_completed_orders_business_rule() -> None:
+    """Verify system prompt defines completed orders as non-cancelled (status != 'cancelled')."""
+    prompt = build_system_prompt()
+    assert "completed orders" in prompt.lower()
+    assert "status != 'cancelled'" in prompt
+    assert "delivered" in prompt.lower()

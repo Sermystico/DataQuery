@@ -154,6 +154,80 @@ Open [http://localhost:5173](http://localhost:5173). The Vite development server
 
 ---
 
+## Local LLM Setup with Ollama (Zero API Costs)
+
+DataQuery supports real local LLM generation and query explanations using [Ollama](https://ollama.ai/) with your locally installed models (e.g. `llama3.2:latest`), requiring zero external API keys, zero network egress, and no paid cloud services.
+
+### 1. Verify Installed Models
+Check that Ollama is installed and inspect your available models:
+```powershell
+ollama list
+```
+Expected output includes a chat/instruct model (such as `llama3.2:latest`):
+```text
+NAME                       ID              SIZE      MODIFIED
+llama3.2:latest            a80c4f17acd5    2.0 GB    4 weeks ago
+nomic-embed-text:latest    0a109f422b47    274 MB    4 weeks ago
+```
+> [!NOTE]
+> `llama3.2:latest` is a 3.2B parameter instruction-tuned model suitable for local SQL generation and result explanations. `nomic-embed-text` is an embedding model and cannot be used for text generation.
+
+If you need to install or pull `llama3.2:latest`:
+```powershell
+ollama pull llama3.2:latest
+```
+
+### 2. Start the Ollama Service
+Ensure Ollama is running on your machine:
+```powershell
+# If not running as a Windows system tray app:
+ollama serve
+```
+Verify the local API endpoint responds:
+```powershell
+curl http://localhost:11434/api/tags
+```
+
+### 3. Run DataQuery with Ollama
+
+#### Local PowerShell Host Run:
+```powershell
+$env:LLM_PROVIDER="ollama"
+$env:OLLAMA_BASE_URL="http://localhost:11434"
+$env:LLM_MODEL="llama3.2:latest"
+.\backend\.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+#### Docker Compose Run:
+When running inside Docker containers, the backend connects to Ollama running on your Windows host via `host.docker.internal`:
+```powershell
+# Set in .env or environment:
+# LLM_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://host.docker.internal:11434
+# LLM_MODEL=llama3.2:latest
+docker compose up -d
+```
+
+### 4. Verify an End-to-End Query
+Execute a test query using PowerShell:
+```powershell
+$body = @{
+    question = "What is the total revenue across all completed orders?"
+    include_explanation = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/query" -Method Post -ContentType "application/json" -Body $body
+```
+The response returns status `"success"`, validated SQL executed under `dq_readonly`, returned row metrics, and a plain-English explanation generated directly by `llama3.2:latest`.
+
+### 5. Troubleshooting Ollama
+- **Connection Refused (`Unable to establish connection to Ollama`)**: Ensure Ollama is running (`ollama serve` or start the Ollama desktop application). Verify port 11434 is listening: `Test-NetConnection -ComputerName localhost -Port 11434`.
+- **Model Not Found 404 (`Ollama model ... was not found`)**: Run `ollama pull <model-name>` (e.g. `ollama pull llama3.2:latest`).
+- **Embedding Model Error (`nomic-embed-text is an embedding model`)**: Ensure `LLM_MODEL` is set to a generative instruction model (`llama3.2:latest`, `qwen2.5-coder:7b`, etc.) rather than an embedding model.
+- **Request Timed Out**: Local inference time depends on hardware CPU/GPU performance. Increase `OLLAMA_TIMEOUT_SECONDS` (default: 60s) in `.env` if large schema prompts exceed standard timeouts on slower systems.
+
+---
+
 ## Environment Variables Reference
 
 All configuration variables are defined with strict Pydantic typed settings in `backend/app/core/config.py`:
@@ -169,9 +243,14 @@ All configuration variables are defined with strict Pydantic typed settings in `
 | `POSTGRES_APP_PASSWORD` | `SecretStr` | *Required* | Password for `dq_app` |
 | `DB_HOST` | `str` | `localhost` | Database hostname (`db` in Docker) |
 | `DB_PORT` | `int` | `5434` | Database port (`5432` in Docker) |
-| `LLM_PROVIDER` | `str` | `mock` | LLM engine (`mock` or `anthropic`) |
+| `LLM_PROVIDER` | `str` | `mock` | LLM engine (`mock`, `ollama`, `anthropic`, or `gemini`) |
+| `OLLAMA_BASE_URL` | `str` | `http://localhost:11434` | Local Ollama REST endpoint (`host.docker.internal` in Docker) |
+| `OLLAMA_TIMEOUT_SECONDS` | `float`| `120.0` | Ollama query timeout in seconds |
 | `ANTHROPIC_API_KEY` | `SecretStr` | `""` | Anthropic API key (required if `anthropic`) |
-| `LLM_MODEL` | `str` | `claude-3-5-sonnet-20241022`| Anthropic Claude model name |
+| `GEMINI_API_KEY` | `SecretStr` | `""` | Google Gemini API key (required if `gemini`) |
+| `GEMINI_MODEL` | `str` | `None` | Gemini model name (e.g. `gemini-2.5-flash`, `gemini-3.8-flash`) |
+| `GEMINI_TIMEOUT_SECONDS` | `float`| `30.0` | Gemini API request timeout in seconds |
+| `LLM_MODEL` | `str` | `claude-3-5-sonnet-20241022`| Model name for Anthropic or Ollama |
 | `ANALYTICS_AS_OF_DATE` | `datetime` | `2024-11-01T00:00:00Z` | Fixed reference date for temporal queries |
 | `QUERY_TIMEOUT_MS` | `int` | `3000` | Max SQL execution time before cancel |
 | `MAX_RESULT_ROWS` | `int` | `100` | Max result rows returned per query |
@@ -367,7 +446,7 @@ The DataQuery API is versioned under `/api/v1/`. All error responses conform to 
 $env:PYTHONPATH="backend;eval"
 .\backend\.venv\Scripts\pytest.exe backend/tests --cov=app --cov-report=term-missing
 ```
-- **Results:** 289 passed, 1 skipped (live anthropic test), **92% line coverage**.
+- **Results:** 355 passed, 1 skipped (live anthropic test), **100% line coverage** across all 46 backend modules.
 
 ### Run Ruff Code Quality Checks
 ```powershell
@@ -412,4 +491,7 @@ $env:PYTHONPATH="backend;eval"
 1. **Analytical Scope:** The system answers business analytics questions spanning the 5 approved tables (`customers`, `products`, `orders`, `order_items`, `payments`). Out-of-domain questions (e.g. stock market predictions, server configurations) are safely rejected as `unsupported`.
 2. **Result Capping:** Result sets are capped at `MAX_RESULT_ROWS=100` to prevent memory exhaustion. Queries exceeding 100 rows return the first 100 rows with `truncated: true`.
 3. **Execution Timeout:** Heavy queries exceeding `QUERY_TIMEOUT_MS=3000` are proactively canceled by PostgreSQL statement timeouts (`504 QUERY_TIMEOUT`).
-4. **Live Provider Evaluation:** Live Claude 3.5 Sonnet evaluation requires setting `LLM_PROVIDER=anthropic` and a valid `ANTHROPIC_API_KEY`.
+4. **Local Model Capabilities (`llama3.2:latest`):** As a compact 3.2B parameter instruction-tuned model, `llama3.2:latest` operates efficiently on local CPUs/GPUs with no API charges. While excellent for standard aggregations, joins, and filtering, complex queries involving multiple window functions or multi-level CTEs may require larger parameter models (e.g. `qwen2.5-coder:7b` or `claude-3-5-sonnet-20241022`).
+5. **Embedding Models:** Embedding models such as `nomic-embed-text:latest` only compute vector embeddings and cannot generate chat or SQL; attempting to configure them raises a `CONFIGURATION_ERROR`.
+6. **Live Provider Evaluation:** Live Claude 3.5 Sonnet evaluation requires setting `LLM_PROVIDER=anthropic` and a valid `ANTHROPIC_API_KEY`.
+

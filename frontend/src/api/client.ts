@@ -48,7 +48,7 @@ export interface ClientConfig {
   defaultTimeoutMs?: number;
 }
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 90000;
 
 export class ApiClient {
   private readonly baseUrl: string;
