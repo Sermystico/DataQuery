@@ -80,20 +80,20 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "JOIN order_items oi ON o.id = oi.order_id "
             "WHERE o.status != 'cancelled' "
             "GROUP BY c.region "
-            "ORDER BY total_revenue DESC;"
+            "ORDER BY total_revenue DESC, c.region ASC;"
         ),
         category="grouping",
     ),
     GoldenQuery(
         id="GRP-02",
         question="Count the total number of orders by fulfillment status.",
-        sql="SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC;",
+        sql="SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC, status ASC;",
         category="grouping",
     ),
     GoldenQuery(
         id="GRP-03",
         question="What is the average product unit price in each category?",
-        sql="SELECT category, ROUND(AVG(unit_price), 2) AS avg_unit_price FROM products GROUP BY category ORDER BY avg_unit_price DESC;",
+        sql="SELECT category, ROUND(AVG(unit_price), 2) AS avg_unit_price FROM products GROUP BY category ORDER BY avg_unit_price DESC, category ASC;",
         category="grouping",
     ),
     GoldenQuery(
@@ -107,14 +107,14 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "WHERE o.status != 'cancelled' "
             "GROUP BY p.category "
             "HAVING SUM(oi.quantity * oi.unit_price) > 10000 "
-            "ORDER BY total_revenue DESC;"
+            "ORDER BY total_revenue DESC, p.category ASC;"
         ),
         category="grouping",
     ),
     GoldenQuery(
         id="GRP-05",
         question="How many customers registered in each geographical region?",
-        sql="SELECT region, COUNT(*) AS customer_count FROM customers GROUP BY region ORDER BY customer_count DESC;",
+        sql="SELECT region, COUNT(*) AS customer_count FROM customers GROUP BY region ORDER BY customer_count DESC, region ASC;",
         category="grouping",
     ),
     # --- Top-N & Ranking ---
@@ -128,7 +128,7 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "JOIN orders o ON oi.order_id = o.id "
             "WHERE o.status != 'cancelled' "
             "GROUP BY p.name "
-            "ORDER BY total_quantity DESC "
+            "ORDER BY total_quantity DESC, p.name ASC "
             "LIMIT 5;"
         ),
         category="ranking",
@@ -143,7 +143,7 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "JOIN order_items oi ON o.id = oi.order_id "
             "WHERE o.status != 'cancelled' "
             "GROUP BY c.name "
-            "ORDER BY total_spend DESC "
+            "ORDER BY total_spend DESC, c.name ASC "
             "LIMIT 3;"
         ),
         category="ranking",
@@ -151,7 +151,7 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
     GoldenQuery(
         id="TOP-03",
         question="What is the single most expensive product in inventory?",
-        sql="SELECT name, unit_price FROM products ORDER BY unit_price DESC LIMIT 1;",
+        sql="SELECT name, unit_price FROM products ORDER BY unit_price DESC, name ASC LIMIT 1;",
         category="ranking",
     ),
     GoldenQuery(
@@ -164,7 +164,7 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "JOIN orders o ON oi.order_id = o.id "
             "WHERE o.status != 'cancelled' "
             "GROUP BY p.category "
-            "ORDER BY total_revenue DESC "
+            "ORDER BY total_revenue DESC, p.category ASC "
             "LIMIT 3;"
         ),
         category="ranking",
@@ -172,7 +172,7 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
     GoldenQuery(
         id="TOP-05",
         question="Find the 5 most recent orders placed in the system.",
-        sql="SELECT id, customer_id, order_date, status FROM orders ORDER BY order_date DESC LIMIT 5;",
+        sql="SELECT id, customer_id, order_date, status FROM orders ORDER BY order_date DESC, id DESC LIMIT 5;",
         category="ranking",
     ),
     # --- Date-Based Queries (Anchored to 2024-11-01) ---
@@ -239,13 +239,13 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
     GoldenQuery(
         id="FLT-01",
         question="List all customers located in the EMEA region.",
-        sql="SELECT id, name, email FROM customers WHERE region = 'EMEA';",
+        sql="SELECT id, name, email FROM customers WHERE region = 'EMEA' ORDER BY id ASC;",
         category="filtering",
     ),
     GoldenQuery(
         id="FLT-02",
         question="Show all products priced over $100.",
-        sql="SELECT id, name, category, unit_price FROM products WHERE unit_price > 100 ORDER BY unit_price DESC;",
+        sql="SELECT id, name, category, unit_price FROM products WHERE unit_price > 100 ORDER BY unit_price DESC, id ASC;",
         category="filtering",
     ),
     GoldenQuery(
@@ -257,13 +257,14 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
     # --- Table Joins ---
     GoldenQuery(
         id="JOIN-01",
-        question="Show order ID, customer name, and order date for all placed orders.",
+        question="Show order ID, customer name, and order date for the 50 most recent placed orders.",
         sql=(
             "SELECT o.id, c.name, o.order_date "
             "FROM orders o "
             "JOIN customers c ON o.customer_id = c.id "
             "WHERE o.status = 'placed' "
-            "ORDER BY o.order_date DESC;"
+            "ORDER BY o.order_date DESC, o.id DESC "
+            "LIMIT 50;"
         ),
         category="joins",
     ),
@@ -271,19 +272,19 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
         id="JOIN-02",
         question="List each product name alongside its total units sold.",
         sql=(
-            "SELECT p.name, COALESCE(SUM(oi.quantity), 0) AS total_units_sold "
+            "SELECT p.name, COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity ELSE 0 END), 0) AS total_units_sold "
             "FROM products p "
             "LEFT JOIN order_items oi ON p.id = oi.product_id "
             "LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled' "
             "GROUP BY p.name "
-            "ORDER BY total_units_sold DESC;"
+            "ORDER BY total_units_sold DESC, p.name ASC;"
         ),
         category="joins",
     ),
     GoldenQuery(
         id="JOIN-03",
         question="Which customers have never placed any orders?",
-        sql="SELECT c.id, c.name, c.email FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL;",
+        sql="SELECT c.id, c.name, c.email FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL ORDER BY c.id ASC;",
         category="joins",
     ),
     GoldenQuery(
@@ -294,8 +295,38 @@ GOLDEN_QUERIES: list[GoldenQuery] = [
             "FROM payments "
             "WHERE status = 'completed' "
             "GROUP BY method "
-            "ORDER BY total_amount DESC;"
+            "ORDER BY total_amount DESC, method ASC;"
         ),
         category="payments",
     ),
+    GoldenQuery(
+        id="AGG-06",
+        question="What is the total amount of all successful payments?",
+        sql="SELECT SUM(amount) AS total_successful_payments FROM payments WHERE status = 'completed';",
+        category="aggregation",
+    ),
+    GoldenQuery(
+        id="GRP-06",
+        question="What is the total revenue and order count for each payment method?",
+        sql=(
+            "SELECT method, SUM(amount) AS total_amount, COUNT(*) AS payment_count "
+            "FROM payments "
+            "GROUP BY method "
+            "ORDER BY total_amount DESC, method ASC;"
+        ),
+        category="grouping",
+    ),
+    GoldenQuery(
+        id="FLT-04",
+        question="List all orders placed on November 1, 2024.",
+        sql="SELECT id, customer_id, status FROM orders WHERE order_date = '2024-11-01' ORDER BY id ASC;",
+        category="filtering",
+    ),
+    GoldenQuery(
+        id="PAY-02",
+        question="How many payments failed or were refunded?",
+        sql="SELECT status, COUNT(*) AS payment_count FROM payments WHERE status IN ('failed', 'refunded') GROUP BY status ORDER BY payment_count DESC, status ASC;",
+        category="payments",
+    ),
 ]
+

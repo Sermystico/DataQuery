@@ -16,8 +16,13 @@ ignore = [
     "E501", # line too long (handled by formatter)
 ]
 
+[lint.per-file-ignores]
+"eval/*" = ["E402"]
+"backend/tests/**" = ["E402"]
+"tests/**" = ["E402"]
+
 [lint.isort]
-known-first-party = ["app"]
+known-first-party = ["app", "ground_truth", "run_eval"]
 
 [format]
 quote-style = "double"
