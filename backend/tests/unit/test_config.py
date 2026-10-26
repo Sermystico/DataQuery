@@ -96,6 +96,23 @@ def test_database_url_generation_and_encoding() -> None:
 
 
 @pytest.mark.unit
+def test_effective_gemini_model_property() -> None:
+    """Verify effective_gemini_model resolution from GEMINI_MODEL and LLM_MODEL."""
+    # When GEMINI_MODEL is set directly
+    s1 = Settings(GEMINI_MODEL="gemini-3.8-flash")
+    assert s1.effective_gemini_model == "gemini-3.8-flash"
+
+    # When GEMINI_MODEL is None but LLM_MODEL has gemini
+    s2 = Settings(GEMINI_MODEL=None, LLM_MODEL="gemini-2.5-flash")
+    assert s2.effective_gemini_model == "gemini-2.5-flash"
+
+    # When neither has a gemini model
+    s3 = Settings(GEMINI_MODEL=None, LLM_MODEL="claude-3-5-sonnet-20241022")
+    assert s3.effective_gemini_model is None
+
+
+
+@pytest.mark.unit
 def test_app_config_reexport() -> None:
     """Verify app.config re-exports Settings and get_settings correctly."""
     import app.config as app_config

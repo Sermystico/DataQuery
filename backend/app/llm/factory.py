@@ -71,7 +71,12 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
                 http_status=500,
                 details={"provider": "gemini", "setting": "GEMINI_API_KEY"},
             )
-        if not settings.GEMINI_MODEL or not settings.GEMINI_MODEL.strip():
+        model_name = (
+            settings.effective_gemini_model
+            if hasattr(settings, "effective_gemini_model")
+            else settings.GEMINI_MODEL
+        )
+        if not model_name:
             raise AppError(
                 message=(
                     "GEMINI_MODEL must be configured with a valid model name "
@@ -85,7 +90,7 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
 
         return GeminiProvider(
             api_key=raw_key.strip(),
-            model=settings.GEMINI_MODEL.strip(),
+            model=model_name,
             timeout=settings.GEMINI_TIMEOUT_SECONDS,
         )
 

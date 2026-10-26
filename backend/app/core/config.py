@@ -2,15 +2,19 @@
 
 from datetime import date
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_DOTENV_PATH = _PROJECT_ROOT / ".env"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(str(_DOTENV_PATH), ".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -63,6 +67,15 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Return CORS_ORIGINS parsed as a list of origin strings."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def effective_gemini_model(self) -> str | None:
+        """Return configured Gemini model from GEMINI_MODEL, falling back to LLM_MODEL if it matches Gemini."""
+        if self.GEMINI_MODEL and self.GEMINI_MODEL.strip():
+            return self.GEMINI_MODEL.strip()
+        if self.LLM_MODEL and "gemini" in self.LLM_MODEL.lower():
+            return self.LLM_MODEL.strip()
+        return None
 
     @property
     def owner_database_url(self) -> str:
