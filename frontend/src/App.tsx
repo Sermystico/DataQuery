@@ -1,122 +1,203 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useState } from 'react';
+import './App.css';
+import { ApiClientError, apiClient } from './api/client';
+import { AnswerCard } from './components/AnswerCard';
+import { ChartView } from './components/ChartView';
+import { EmptyState } from './components/EmptyState';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ExampleChips } from './components/ExampleChips';
+import { HistoryPanel } from './components/HistoryPanel';
+import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { QuestionForm } from './components/QuestionForm';
+import { ResultsTable } from './components/ResultsTable';
+import { SqlViewer } from './components/SqlViewer';
+import { StatusBanner } from './components/StatusBanner';
+import type { QueryResponse } from './types/api';
 
-function App() {
-  const [count, setCount] = useState(0)
+export function App() {
+  const [currentQuestion, setCurrentQuestion] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [response, setResponse] = useState<QueryResponse | null>(null);
+  const [apiError, setApiError] = useState<{
+    message: string;
+    code?: string;
+    requestId?: string;
+  } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState<boolean>(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0);
+
+  const executeQuestion = useCallback(
+    async (questionText: string) => {
+      if (loading) {
+        return;
+      }
+
+      setLoading(true);
+      setApiError(null);
+      setCurrentQuestion(questionText);
+
+      try {
+        const result = await apiClient.executeQuery({
+          question: questionText,
+          include_explanation: true,
+        });
+        setResponse(result);
+        setHistoryRefreshKey((prev) => prev + 1);
+      } catch (err: unknown) {
+        setResponse(null);
+        if (err instanceof ApiClientError) {
+          setApiError({
+            message: err.message,
+            code: err.code,
+            requestId: err.requestId,
+          });
+        } else if (err instanceof Error) {
+          setApiError({
+            message: err.message,
+            code: 'CLIENT_ERROR',
+          });
+        } else {
+          setApiError({
+            message: 'An unexpected error occurred.',
+            code: 'UNKNOWN_ERROR',
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading]
+  );
+
+  const handleSelectExample = (question: string) => {
+    setCurrentQuestion(question);
+    executeQuestion(question);
+  };
+
+  const handleSelectHistory = (question: string) => {
+    setCurrentQuestion(question);
+    executeQuestion(question);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <ErrorBoundary>
+      <div className="app-layout">
+        <header className="app-header">
+          <div className="header-inner">
+            <div className="brand-group">
+              <span className="brand-icon" aria-hidden="true">⚡</span>
+              <div className="brand-titles">
+                <h1 className="brand-name">DataQuery</h1>
+                <span className="brand-subtitle">AI-Powered Analytics Assistant</span>
+              </div>
+            </div>
 
-      <div className="ticks"></div>
+            <div className="header-actions">
+              <button
+                type="button"
+                className="history-toggle-btn"
+                onClick={() => setHistoryOpen(true)}
+                aria-label="Open Query History Panel"
+                title="View recent queries audit log"
+              >
+                <span className="btn-icon" aria-hidden="true">⏱</span>
+                <span>History</span>
+              </button>
+            </div>
+          </div>
+        </header>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <main className="main-content">
+          <div className="query-box-section">
+            <QuestionForm
+              initialValue={currentQuestion}
+              loading={loading}
+              onSubmit={executeQuestion}
+            />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+            <ExampleChips
+              onSelect={handleSelectExample}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="results-section">
+            {loading && <LoadingSkeleton />}
+
+            {!loading && apiError && (
+              <StatusBanner
+                status="error"
+                errorMessage={apiError.message}
+                errorCode={apiError.code}
+                requestId={apiError.requestId}
+              />
+            )}
+
+            {!loading && response && (
+              <div className="response-display">
+                <StatusBanner
+                  status={response.status}
+                  rejectionReasons={response.rejection_reasons}
+                  rowCount={response.row_count}
+                />
+
+                {response.status === 'success' && (
+                  <>
+                    <AnswerCard
+                      answer={response.answer}
+                      explanationSource={response.explanation_source}
+                    />
+
+                    {response.chart_hint && (
+                      <ChartView
+                        chartHint={response.chart_hint}
+                        columns={response.columns}
+                        rows={response.rows}
+                      />
+                    )}
+
+                    {response.row_count === 0 ? (
+                      <EmptyState type="zero_rows" question={response.question} />
+                    ) : (
+                      <ResultsTable
+                        columns={response.columns}
+                        rows={response.rows}
+                        rowCount={response.row_count}
+                        truncated={response.truncated}
+                      />
+                    )}
+
+                    <SqlViewer sql={response.sql} />
+                  </>
+                )}
+
+                {response.status === 'rejected' && (
+                  <SqlViewer sql={response.sql} />
+                )}
+              </div>
+            )}
+
+            {!loading && !apiError && !response && (
+              <EmptyState type="initial" />
+            )}
+          </div>
+        </main>
+
+        <HistoryPanel
+          isOpen={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          onSelectQuery={handleSelectHistory}
+          refreshTrigger={historyRefreshKey}
+        />
+
+        <footer className="app-footer">
+          <div className="footer-inner">
+            <span>DataQuery Analytics Engine • PostgreSQL 16 & SQLGlot Guardrails</span>
+          </div>
+        </footer>
+      </div>
+    </ErrorBoundary>
+  );
 }
 
-export default App
+export default App;
