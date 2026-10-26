@@ -7,6 +7,9 @@ allowlist — never introspecting raw database catalogs (pg_*, information_schem
 
 from typing import Any
 
+# Permitted database schemas
+ALLOWED_SCHEMAS: set[str] = {"public"}
+
 # Permitted analytical tables accessible for query generation and execution
 ALLOWED_TABLES: set[str] = {
     "customers",
@@ -14,6 +17,38 @@ ALLOWED_TABLES: set[str] = {
     "orders",
     "order_items",
     "payments",
+}
+
+# Permitted tables mapped to their explicit allowed column names
+TABLE_COLUMNS: dict[str, set[str]] = {
+    "customers": {"id", "name", "email", "region", "signup_date"},
+    "products": {"id", "name", "category", "unit_price"},
+    "orders": {"id", "customer_id", "order_date", "status"},
+    "order_items": {"id", "order_id", "product_id", "quantity", "unit_price"},
+    "payments": {"id", "order_id", "amount", "method", "status", "paid_at"},
+}
+
+# Strict function allowlist for analytical calculations (all uppercase)
+ALLOWED_FUNCTIONS: set[str] = {
+    "SUM",
+    "COUNT",
+    "AVG",
+    "MIN",
+    "MAX",
+    "ROUND",
+    "COALESCE",
+    "NULLIF",
+    "DATE_TRUNC",
+    "EXTRACT",
+    "CAST",
+    "LOWER",
+    "UPPER",
+    "ABS",
+    "ROW_NUMBER",
+    "RANK",
+    "DENSE_RANK",
+    "LAG",
+    "LEAD",
 }
 
 # Forbidden system catalogs and internal application tables
