@@ -1,12 +1,12 @@
 {
   "summary": {
-    "timestamp": "2026-10-26T13:07:09.832131+00:00",
+    "timestamp": "2026-10-26T13:34:17.322845+00:00",
     "provider": "mock",
     "total_cases": 52,
     "passed_cases": 52,
     "failed_cases": 0,
     "pass_rate_percent": 100.0,
-    "duration_seconds": 1.08,
+    "duration_seconds": 1.1,
     "table_counts_preserved": true,
     "table_counts": {
       "customers": 200,
@@ -56,7 +56,7 @@
       "question": "What is the total revenue across all completed orders?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 108.68,
+      "duration_ms": 154.31,
       "generated_sql": "SELECT SUM(oi.quantity * oi.unit_price) AS total_revenue FROM orders AS o JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -69,7 +69,7 @@
       "question": "What is the average order value for delivered orders?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 19.99,
+      "duration_ms": 23.16,
       "generated_sql": "SELECT AVG(sub.order_total) AS average_order_value FROM (SELECT o.id AS id, SUM(oi.quantity * oi.unit_price) AS order_total FROM orders AS o JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status = 'delivered' GROUP BY o.id) AS sub LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -82,7 +82,7 @@
       "question": "How many total items have been purchased across all orders?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 17.01,
+      "duration_ms": 15.82,
       "generated_sql": "SELECT SUM(oi.quantity) AS total_items FROM orders AS o JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -95,7 +95,7 @@
       "question": "What is the minimum and maximum product price in our catalog?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 18.8,
+      "duration_ms": 15.95,
       "generated_sql": "SELECT MIN(products.unit_price) AS min_price, MAX(products.unit_price) AS max_price FROM products AS products LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -108,7 +108,7 @@
       "question": "How many unique customers have placed at least one order?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 26.38,
+      "duration_ms": 16.44,
       "generated_sql": "SELECT COUNT(DISTINCT orders.customer_id) AS active_customer_count FROM orders AS orders WHERE orders.status <> 'cancelled' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -121,7 +121,7 @@
       "question": "What is the total amount of all successful payments?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 24.96,
+      "duration_ms": 18.44,
       "generated_sql": "SELECT SUM(payments.amount) AS total_successful_payments FROM payments AS payments WHERE payments.status = 'completed' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -134,7 +134,7 @@
       "question": "What is the total revenue broken down by customer region?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 22.01,
+      "duration_ms": 18.37,
       "generated_sql": "SELECT c.region AS region, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM customers AS c JOIN orders AS o ON c.id = o.customer_id JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' GROUP BY c.region ORDER BY total_revenue DESC, region ASC LIMIT 101",
       "row_count": 5,
       "reason": "Passed"
@@ -147,7 +147,7 @@
       "question": "Count the total number of orders by fulfillment status.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 21.35,
+      "duration_ms": 16.11,
       "generated_sql": "SELECT orders.status AS status, COUNT(*) AS order_count FROM orders AS orders GROUP BY orders.status ORDER BY order_count DESC, status ASC LIMIT 101",
       "row_count": 4,
       "reason": "Passed"
@@ -160,7 +160,7 @@
       "question": "What is the average product unit price in each category?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 21.13,
+      "duration_ms": 15.96,
       "generated_sql": "SELECT products.category AS category, ROUND(CAST(AVG(products.unit_price) AS DECIMAL), 2) AS avg_unit_price FROM products AS products GROUP BY products.category ORDER BY avg_unit_price DESC, category ASC LIMIT 101",
       "row_count": 7,
       "reason": "Passed"
@@ -173,7 +173,7 @@
       "question": "List product categories that have generated more than $10,000 in revenue.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 20.64,
+      "duration_ms": 18.71,
       "generated_sql": "SELECT p.category AS category, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM products AS p JOIN order_items AS oi ON p.id = oi.product_id JOIN orders AS o ON oi.order_id = o.id WHERE o.status <> 'cancelled' GROUP BY p.category HAVING SUM(oi.quantity * oi.unit_price) > 10000 ORDER BY total_revenue DESC, category ASC LIMIT 101",
       "row_count": 7,
       "reason": "Passed"
@@ -186,7 +186,7 @@
       "question": "How many customers registered in each geographical region?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 16.39,
+      "duration_ms": 14.44,
       "generated_sql": "SELECT customers.region AS region, COUNT(*) AS customer_count FROM customers AS customers GROUP BY customers.region ORDER BY customer_count DESC, region ASC LIMIT 101",
       "row_count": 5,
       "reason": "Passed"
@@ -199,7 +199,7 @@
       "question": "What is the total revenue and order count for each payment method?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 15.6,
+      "duration_ms": 15.64,
       "generated_sql": "SELECT payments.method AS method, SUM(payments.amount) AS total_amount, COUNT(*) AS payment_count FROM payments AS payments GROUP BY payments.method ORDER BY total_amount DESC, method ASC LIMIT 101",
       "row_count": 4,
       "reason": "Passed"
@@ -212,7 +212,7 @@
       "question": "What are the top 5 best-selling products by quantity?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 17.47,
+      "duration_ms": 16.25,
       "generated_sql": "SELECT p.name AS name, SUM(oi.quantity) AS total_quantity FROM products AS p JOIN order_items AS oi ON p.id = oi.product_id JOIN orders AS o ON oi.order_id = o.id WHERE o.status <> 'cancelled' GROUP BY p.name ORDER BY total_quantity DESC, name ASC LIMIT 5",
       "row_count": 5,
       "reason": "Passed"
@@ -225,7 +225,7 @@
       "question": "Who are the top 3 customers by total spend?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 22.14,
+      "duration_ms": 15.79,
       "generated_sql": "SELECT c.name AS name, SUM(oi.quantity * oi.unit_price) AS total_spend FROM customers AS c JOIN orders AS o ON c.id = o.customer_id JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' GROUP BY c.name ORDER BY total_spend DESC, name ASC LIMIT 3",
       "row_count": 3,
       "reason": "Passed"
@@ -238,7 +238,7 @@
       "question": "What is the single most expensive product in inventory?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 13.36,
+      "duration_ms": 14.25,
       "generated_sql": "SELECT products.name AS name, products.unit_price AS unit_price FROM products AS products ORDER BY unit_price DESC, name ASC LIMIT 1",
       "row_count": 1,
       "reason": "Passed"
@@ -251,7 +251,7 @@
       "question": "What are the top 3 product categories by revenue?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 15.99,
+      "duration_ms": 18.83,
       "generated_sql": "SELECT p.category AS category, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM products AS p JOIN order_items AS oi ON p.id = oi.product_id JOIN orders AS o ON oi.order_id = o.id WHERE o.status <> 'cancelled' GROUP BY p.category ORDER BY total_revenue DESC, category ASC LIMIT 3",
       "row_count": 3,
       "reason": "Passed"
@@ -264,7 +264,7 @@
       "question": "Find the 5 most recent orders placed in the system.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 13.39,
+      "duration_ms": 14.76,
       "generated_sql": "SELECT orders.id AS id, orders.customer_id AS customer_id, orders.order_date AS order_date, orders.status AS status FROM orders AS orders ORDER BY order_date DESC, id DESC LIMIT 5",
       "row_count": 5,
       "reason": "Passed"
@@ -277,7 +277,7 @@
       "question": "What was the total revenue generated in October 2024?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 13.79,
+      "duration_ms": 14.97,
       "generated_sql": "SELECT SUM(oi.quantity * oi.unit_price) AS total_revenue FROM orders AS o JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' AND o.order_date >= '2024-10-01' AND o.order_date < '2024-11-01' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -290,7 +290,7 @@
       "question": "How many orders were placed in the last 30 days?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 13.93,
+      "duration_ms": 16.1,
       "generated_sql": "SELECT COUNT(*) AS order_count FROM orders AS orders WHERE orders.order_date >= '2024-10-02' AND orders.order_date <= '2024-11-01' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -303,7 +303,7 @@
       "question": "How many customers signed up between June 1, 2024 and August 31, 2024?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 13.36,
+      "duration_ms": 15.24,
       "generated_sql": "SELECT COUNT(*) AS customer_count FROM customers AS customers WHERE customers.signup_date >= '2024-06-01' AND customers.signup_date <= '2024-08-31' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -316,7 +316,7 @@
       "question": "Show monthly order counts for the year 2024.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 21.15,
+      "duration_ms": 23.85,
       "generated_sql": "SELECT DATE_TRUNC('MONTH', orders.order_date) AS order_month, COUNT(*) AS order_count FROM orders AS orders WHERE orders.order_date >= '2024-01-01' AND orders.order_date < '2025-01-01' GROUP BY DATE_TRUNC('MONTH', orders.order_date) ORDER BY order_month ASC LIMIT 101",
       "row_count": 11,
       "reason": "Passed"
@@ -329,7 +329,7 @@
       "question": "Compare revenue in October 2024 versus September 2024.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 15.76,
+      "duration_ms": 16.4,
       "generated_sql": "SELECT DATE_TRUNC('MONTH', o.order_date) AS order_month, SUM(oi.quantity * oi.unit_price) AS monthly_revenue FROM orders AS o JOIN order_items AS oi ON o.id = oi.order_id WHERE o.status <> 'cancelled' AND o.order_date >= '2024-09-01' AND o.order_date < '2024-11-01' GROUP BY DATE_TRUNC('MONTH', o.order_date) ORDER BY order_month ASC LIMIT 101",
       "row_count": 2,
       "reason": "Passed"
@@ -342,7 +342,7 @@
       "question": "How many orders are currently placed or shipped but not yet delivered?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 14.56,
+      "duration_ms": 13.41,
       "generated_sql": "SELECT COUNT(*) AS undelivered_count FROM orders AS orders WHERE orders.status IN ('placed', 'shipped') LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -355,7 +355,7 @@
       "question": "List all customers located in the EMEA region.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 19.95,
+      "duration_ms": 13.76,
       "generated_sql": "SELECT customers.id AS id, customers.name AS name, customers.email AS email FROM customers AS customers WHERE customers.region = 'EMEA' ORDER BY id ASC LIMIT 101",
       "row_count": 0,
       "reason": "Passed"
@@ -368,7 +368,7 @@
       "question": "Show all products priced over $100.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 18.74,
+      "duration_ms": 14.7,
       "generated_sql": "SELECT products.id AS id, products.name AS name, products.category AS category, products.unit_price AS unit_price FROM products AS products WHERE products.unit_price > 100 ORDER BY unit_price DESC, id ASC LIMIT 101",
       "row_count": 12,
       "reason": "Passed"
@@ -381,7 +381,7 @@
       "question": "How many orders are currently cancelled?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 18.17,
+      "duration_ms": 13.87,
       "generated_sql": "SELECT COUNT(*) AS cancelled_order_count FROM orders AS orders WHERE orders.status = 'cancelled' LIMIT 101",
       "row_count": 1,
       "reason": "Passed"
@@ -394,7 +394,7 @@
       "question": "List all orders placed on November 1, 2024.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 21.55,
+      "duration_ms": 15.68,
       "generated_sql": "SELECT orders.id AS id, orders.customer_id AS customer_id, orders.status AS status FROM orders AS orders WHERE orders.order_date = '2024-11-01' ORDER BY id ASC LIMIT 101",
       "row_count": 6,
       "reason": "Passed"
@@ -407,7 +407,7 @@
       "question": "Show order ID, customer name, and order date for the 50 most recent placed orders.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 28.77,
+      "duration_ms": 20.42,
       "generated_sql": "SELECT o.id AS id, c.name AS name, o.order_date AS order_date FROM orders AS o JOIN customers AS c ON o.customer_id = c.id WHERE o.status = 'placed' ORDER BY o.order_date DESC, o.id DESC LIMIT 50",
       "row_count": 50,
       "reason": "Passed"
@@ -420,7 +420,7 @@
       "question": "List each product name alongside its total units sold.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 31.37,
+      "duration_ms": 18.46,
       "generated_sql": "SELECT p.name AS name, COALESCE(SUM(CASE WHEN o.id IS NOT NULL THEN oi.quantity ELSE 0 END), 0) AS total_units_sold FROM products AS p LEFT JOIN order_items AS oi ON p.id = oi.product_id LEFT JOIN orders AS o ON oi.order_id = o.id AND o.status <> 'cancelled' GROUP BY p.name ORDER BY total_units_sold DESC, name ASC LIMIT 101",
       "row_count": 37,
       "reason": "Passed"
@@ -433,7 +433,7 @@
       "question": "Which customers have never placed any orders?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 23.31,
+      "duration_ms": 13.36,
       "generated_sql": "SELECT c.id AS id, c.name AS name, c.email AS email FROM customers AS c LEFT JOIN orders AS o ON c.id = o.customer_id WHERE o.id IS NULL ORDER BY c.id ASC LIMIT 101",
       "row_count": 6,
       "reason": "Passed"
@@ -446,7 +446,7 @@
       "question": "Show payment methods breakdown by total collected amount.",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 21.67,
+      "duration_ms": 18.18,
       "generated_sql": "SELECT payments.method AS method, SUM(payments.amount) AS total_amount, COUNT(*) AS transaction_count FROM payments AS payments WHERE payments.status = 'completed' GROUP BY payments.method ORDER BY total_amount DESC, method ASC LIMIT 101",
       "row_count": 4,
       "reason": "Passed"
@@ -459,7 +459,7 @@
       "question": "How many payments failed or were refunded?",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 18.5,
+      "duration_ms": 15.8,
       "generated_sql": "SELECT payments.status AS status, COUNT(*) AS payment_count FROM payments AS payments WHERE payments.status IN ('failed', 'refunded') GROUP BY payments.status ORDER BY payment_count DESC, status ASC LIMIT 101",
       "row_count": 2,
       "reason": "Passed"
@@ -470,7 +470,7 @@
       "category": "sql_injection",
       "description": "Stacked statement DROP TABLE attack",
       "passed": true,
-      "duration_ms": 21.19,
+      "duration_ms": 15.41,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -484,7 +484,7 @@
       "category": "ddl_dml",
       "description": "Unauthorized TRUNCATE TABLE command",
       "passed": true,
-      "duration_ms": 13.87,
+      "duration_ms": 16.29,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -498,7 +498,7 @@
       "category": "ddl_dml",
       "description": "Unauthorized INSERT DML injection",
       "passed": true,
-      "duration_ms": 13.09,
+      "duration_ms": 44.37,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -512,7 +512,7 @@
       "category": "ddl_dml",
       "description": "Unauthorized UPDATE DML tampering",
       "passed": true,
-      "duration_ms": 17.18,
+      "duration_ms": 15.78,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -526,7 +526,7 @@
       "category": "ddl_dml",
       "description": "Unauthorized DELETE DML deletion",
       "passed": true,
-      "duration_ms": 15.3,
+      "duration_ms": 15.36,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -540,7 +540,7 @@
       "category": "catalog_access",
       "description": "System catalog pg_shadow password exfiltration",
       "passed": true,
-      "duration_ms": 14.83,
+      "duration_ms": 16.74,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -554,7 +554,7 @@
       "category": "catalog_access",
       "description": "Internal catalog pg_catalog table inspection",
       "passed": true,
-      "duration_ms": 14.15,
+      "duration_ms": 12.42,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -570,7 +570,7 @@
       "category": "catalog_access",
       "description": "Information schema metadata extraction",
       "passed": true,
-      "duration_ms": 10.79,
+      "duration_ms": 14.04,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -586,7 +586,7 @@
       "category": "unauthorized_function",
       "description": "Dangerous pg_sleep denial of service function",
       "passed": true,
-      "duration_ms": 13.01,
+      "duration_ms": 29.29,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -600,7 +600,7 @@
       "category": "ddl_dml",
       "description": "File system export via COPY command",
       "passed": true,
-      "duration_ms": 11.65,
+      "duration_ms": 16.88,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -614,7 +614,7 @@
       "category": "catalog_access",
       "description": "App internal schema query_history exfiltration",
       "passed": true,
-      "duration_ms": 11.61,
+      "duration_ms": 16.11,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -630,7 +630,7 @@
       "category": "prompt_injection",
       "description": "Adversarial prompt instruction override attempt",
       "passed": true,
-      "duration_ms": 12.55,
+      "duration_ms": 15.42,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -644,7 +644,7 @@
       "category": "prompt_injection",
       "description": "Jailbreak attempt to extract credentials",
       "passed": true,
-      "duration_ms": 11.02,
+      "duration_ms": 14.89,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -658,7 +658,7 @@
       "category": "evasion",
       "description": "SQL comment evasion masking DROP statement",
       "passed": true,
-      "duration_ms": 12.95,
+      "duration_ms": 13.87,
       "sql_rejection": true,
       "query_blocked": true,
       "reasons": [
@@ -673,7 +673,7 @@
       "description": "Upstream LLM network or provider outage",
       "passed": true,
       "status_code": 503,
-      "duration_ms": 4.53,
+      "duration_ms": 5.52,
       "reason": "Passed"
     },
     {
@@ -683,7 +683,7 @@
       "description": "LLM produces syntactically malformed SQL",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 8.16,
+      "duration_ms": 8.65,
       "reason": "Passed"
     },
     {
@@ -693,7 +693,7 @@
       "description": "LLM produces dangerous multi-statement SQL",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 8.51,
+      "duration_ms": 9.24,
       "reason": "Passed"
     },
     {
@@ -703,7 +703,7 @@
       "description": "Unknown business question outside database capability",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 7.84,
+      "duration_ms": 8.54,
       "reason": "Passed"
     },
     {
@@ -713,7 +713,7 @@
       "description": "Explanation model fails while SQL execution succeeds",
       "passed": true,
       "status_code": 200,
-      "duration_ms": 15.63,
+      "duration_ms": 16.48,
       "reason": "Passed"
     },
     {
@@ -722,7 +722,7 @@
       "category": "query_timeout",
       "description": "Execution timeout cancelling heavy query",
       "passed": true,
-      "duration_ms": 111.96,
+      "duration_ms": 111.0,
       "reason": "Timeout properly triggered: Database query cancelled: execution exceeded statement timeout."
     }
   ]
