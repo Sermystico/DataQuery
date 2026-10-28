@@ -11,7 +11,7 @@ This document provides auditable evidence, exact counts, architectural reference
 | **Business Query Library** | 20+ | **32** canonical queries | **MET** | [golden_queries.py](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/app/llm/golden_queries.py), [test_eval_ground_truth.py](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/tests/evaluation/test_eval_ground_truth.py) |
 | **REST API Endpoints** | 5+ | **7** endpoints | **MET** | [router.py](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/app/api/v1/router.py), [test_api_v1.py](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/tests/integration/test_api_v1.py) |
 | **Automated Evaluation Cases** | 50+ | **52** benchmark cases | **MET** | [cases.yaml](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/eval/cases.yaml), [latest.md](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/eval/reports/latest.md), [run_eval.py](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/eval/run_eval.py) |
-| **Test Suite Quality & Pass Rate** | >85% cov | **92%** coverage (289 passed) | **MET** | [pytest.ini](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/pytest.ini), [backend/tests/](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/tests/) |
+| **Test Suite Quality & Pass Rate** | >85% cov | **100%** coverage (382 passed) | **MET** | [pytest.ini](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/pytest.ini), [backend/tests/](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/tests/) |
 | **Docker Orchestration** | 3 services | **3** containers (healthy) | **MET** | [docker-compose.yml](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/docker-compose.yml), [Dockerfile](file:///c:/Users/YAJAT/Documents/Projects/DataQuery/backend/Dockerfile) |
 
 ---
@@ -97,7 +97,7 @@ The evaluation suite comprises **52 comprehensive cases** defined in [eval/cases
 ## 4. Code Quality & Test Coverage Evidence
 
 ### Claim: **MET**
-- **Backend Test Suite**: **289 passed**, 1 skipped (Anthropic live key check), **92% line coverage** across all modules.
+- **Backend Test Suite**: **382 passed**, 3 deselected (live API tests opt-in), **100% line coverage** across all 1,273 statements.
 - **Frontend Test Suite**: **26 passed** across 5 test suites with React Testing Library and Vitest.
 - **Frontend Build**: Zero-error production build (`tsc -b && vite build`) producing optimized production assets.
 - **Linting & Formatting**: Clean Ruff audit across backend and evaluation codebase (`ruff check backend eval`).

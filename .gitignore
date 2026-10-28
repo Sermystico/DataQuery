@@ -75,3 +75,6 @@ postgres_data/
 *~
 .DS_Store
 Thumbs.db
+
+# Scratch & Local Experimentation
+scratch/

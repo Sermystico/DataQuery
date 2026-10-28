@@ -8,7 +8,7 @@ This document contains 15 concise, codebase-specific questions and in-depth answ
 **Answer:**
 When a natural language question is submitted to `POST /api/v1/query`:
 1. **Middleware & Context**: `RequestIDMiddleware` generates a unique `req_<uuid>` and records start time.
-2. **NL-to-SQL Generation**: `QueryService` invokes the configured `LLMProvider` (mock or Anthropic Claude 3.5 Sonnet) with a system prompt dynamically constructed from `schema_context.py` containing only the 5 allowed analytics tables.
+2. **NL-to-SQL Generation**: `QueryService` invokes the configured `LLMProvider` (mock, local Ollama, Anthropic Claude 3.5 Sonnet, or Google Gemini) with a system prompt dynamically constructed from `schema_context.py` containing only the 5 allowed analytics tables.
 3. **AST Policy Validation**: The generated SQL is parsed by `sqlglot` (PostgreSQL dialect) in `sql_validator.py`. It checks table allowlists, column allowlists, function allowlists, single-statement invariants, and strips comments. If valid, it returns an opaque `ValidatedSQL` token with normalized SQL and clamped `LIMIT 101`.
 4. **Restricted Execution**: `query_executor.py` executes the `ValidatedSQL` strictly through the `readonly_engine` (`dq_readonly` role) within an explicit read-only transaction (`SET TRANSACTION READ ONLY; SET LOCAL statement_timeout = 3000;`).
 5. **Formatting & Chart Detection**: `formatter.py` converts database types (Decimals to floats, dates to ISO-8601 strings) and produces deterministic `ChartHint` recommendations (bar or line) based on column types and cardinalities.
@@ -110,7 +110,7 @@ A test suite that always passes is untrustworthy. In `eval/run_eval.py` and `bac
 
 ### Q10: How does DataQuery handle upstream LLM outages or garbage output?
 **Answer:**
-1. **Outage / Rate Limit**: If Anthropic API returns a network error or 5xx, `AnthropicProvider` maps it to `LLMUnavailable` (`app/core/errors.py`), returning HTTP 503 with a structured error envelope and user-friendly message.
+1. **Outage / Rate Limit**: If Anthropic, Gemini, or Ollama returns a network error, connection failure, 429 rate limit, or 5xx, the provider implementation maps it to `LLMUnavailable` (`app/core/errors.py`), returning HTTP 503 with a structured error envelope and user-friendly message without leaking credentials or stack traces.
 2. **Garbage Syntax**: If the LLM generates invalid SQL or markdown gibberish, `validate_sql()` catches the parsing failure, marks `valid=False`, and records `"SQL syntax or tokenization error"`.
 3. **Safety / Refusal**: If the question asks for unsupported data (e.g. employee salaries), the LLM generates `supported: false, reason: "..."`. The API returns `status="unsupported"` with the explanation, avoiding database calls.
 

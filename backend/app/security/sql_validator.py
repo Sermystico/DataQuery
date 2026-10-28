@@ -329,6 +329,8 @@ def validate_sql(sql: str, max_rows: int = 100) -> ValidationResult:
         return ValidationResult(valid=False, reasons=reasons)
 
     # 10. Clamp or Inject LIMIT Clause
+    # We fetch one extra row (max_rows + 1) so the executor can detect whether the
+    # result was truncated beyond max_rows without running a separate expensive COUNT(*) query.
     target_limit = max_rows + 1
     limit_node = qualified_ast.args.get("limit")
 

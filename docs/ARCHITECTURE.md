@@ -55,12 +55,23 @@ The database models a standard online store schema under the `public` schema:
    - `quantity` (INT): Units purchased (always > 0)
    - `unit_price` (NUMERIC(10, 2)): Price per unit at purchase time
 
-5. **`dq_query_history`** *(Application internal metadata table, owned by `dq_owner`, accessible by `dq_app`, isolated from `dq_readonly`)*
-   - `id` (VARCHAR/UUID, PK): Query identifier
+5. **`payments`**
+   - `id` (INT, PK): Unique payment transaction identifier
+   - `order_id` (INT, FK -> `orders.id`): Paid order
+   - `amount` (NUMERIC(10, 2)): Payment transaction amount
+   - `method` (VARCHAR): Payment method (`'credit_card'`, `'bank_transfer'`, etc.)
+   - `status` (VARCHAR): Payment status (`'completed'`, `'pending'`, `'failed'`)
+   - `paid_at` (TIMESTAMP): Payment timestamp
+
+6. **`app.query_history`** *(Application internal audit table, owned by `dq_owner`, accessible by `dq_app`, isolated from `dq_readonly`)*
+   - `id` (SERIAL, PK): Query identifier
+   - `request_id` (VARCHAR): Unique request correlation ID
    - `question` (TEXT): Natural language input
-   - `generated_sql` (TEXT): Validated SQL statement
-   - `status` (VARCHAR): `'SUCCESS'`, `'VALIDATION_ERROR'`, `'DB_ERROR'`
-   - `execution_time_ms` (INT): Time taken in milliseconds
+   - `status` (VARCHAR): `'success'`, `'unsupported'`, `'rejected'`, `'error'`
+   - `sql` (TEXT): Validated and normalized SQL statement (or attempted SQL)
+   - `row_count` (INT): Number of result rows returned
+   - `error_code` (VARCHAR): Standardized error code if applicable
+   - `duration_ms` (FLOAT): Total execution time in milliseconds
    - `created_at` (TIMESTAMP): Execution timestamp
 
 ---
@@ -79,45 +90,45 @@ Every natural language query traverses an 8-stage pipeline before a response is 
 [ SchemaContextService ] ───────► (Cached Schema Metadata & Business Rules)
              │  3. Formats System Prompt with Schema Context & Rules
              ▼
-[ LLMService (LLMProvider) ] ───► Anthropic Claude / Deterministic Mock
-             │  4. Returns Structured Output { sql, assumptions, ... }
+[ LLMProvider (Factory) ] ─────► Mock / Ollama / Anthropic / Gemini
+             │  4. Returns Structured Output { sql, supported, reason, ... }
              ▼
 [ SQLSecurityValidator ] ───────► sqlglot AST Policy Engine
      ├── Single statement only?
      ├── Root is SELECT? (No INSERT, UPDATE, DROP, etc.)
-     ├── Allowed tables only? (customers, products, orders, order_items)
+     ├── Allowed tables only? (customers, products, orders, order_items, payments)
      ├── Prohibited functions/system catalogs blocked?
-     └── Enforce row LIMIT (defaults/caps at 100)
+     └── Enforce row LIMIT (defaults/caps at 100, fetches max_rows + 1)
              │
-             ├── [REJECT] ──────► Return 400 SQL_POLICY_VIOLATION
+             ├── [REJECT] ──────► Return 400 VALIDATION_REJECTED
              ▼ [PASS]
-[ DBExecutionService ] ────────► PostgreSQL Connection (Role: dq_readonly)
-     ├── Set session read_only = true
+[ QueryExecutor ] ─────────────► PostgreSQL Connection (Role: dq_readonly)
+     ├── Set transaction read_only = true
      ├── Set statement_timeout = 3000ms
-     └── Execute query & fetch rows (max 100)
+     └── Execute query & fetch rows (detects truncation at max_rows + 1)
              │
              ▼ 5. Raw Rows & Column Descriptions
-[ ResultFormatterService ] ────► Sanitizes types, formats JSON table
+[ ResultFormatter ] ───────────► Sanitizes types, converts Decimal to float, chart hints
              │
              ▼ 6. Generate Contextual Plain-English Explanation
-[ LLMService / Rule Explainer ]
+[ Explainer (LLM / Rule) ] ────► Strict data-only invariant (max 20 rows, fallback)
              │
-             ▼ 7. Asynchronous Audit Log to dq_query_history (Role: dq_app)
+             ▼ 7. Audit Log to app.query_history (Role: dq_app)
 [ Final JSON Response Envelope ]
-             │  8. Returns { query_id, sql, columns, rows, explanation, ... }
+             │  8. Returns { status, question, sql, columns, rows, answer, ... }
              ▼
 [ User Browser / React UI ]
 ```
 
 ### Detailed Pipeline Stages:
 1. **Input Validation**: Fast preliminary validation on user input length (e.g. 5–500 characters), non-empty checks, and basic character safety.
-2. **Schema Context Injection**: Generates prompt context including table schemas, foreign key relationships, business metrics (Revenue, Undelivered, Region), and reference `ANALYTICS_AS_OF_DATE`.
-3. **Structured SQL Generation**: LLM provider produces a strictly structured JSON response conforming to a Pydantic contract containing the raw SQL, reasoning assumptions, and confidence score.
-4. **SQL Parse & Policy Validation (`sqlglot`)**: The generated query is parsed into a syntax tree. The validator rigorously asserts that it is a single `SELECT` statement, references only permitted tables, contains no DDL/DML, and contains no dangerous functions.
-5. **Read-Only Database Execution**: Executed using a scoped database session under the restricted `dq_readonly` role with a strict 3-second statement timeout.
-6. **Result Formatting**: Database records are sanitized into standard tabular JSON containing column names, types, and value rows.
-7. **Explanation Synthesis**: Produces an accessible explanation describing how the SQL translates to the user's intent.
-8. **Response Packaging**: Wraps all output in a standardized, typed API envelope with unique `request_id`.
+2. **Schema Context Injection**: Generates prompt context including 5 permitted table schemas, foreign key relationships, business metrics (Revenue, Undelivered, Region), and reference `ANALYTICS_AS_OF_DATE`.
+3. **Structured SQL Generation**: LLM provider produces a strictly structured JSON response conforming to the `SQLGeneration` Pydantic contract containing SQL, `supported` boolean flag, and reasoning.
+4. **SQL Parse & Policy Validation (`sqlglot`)**: The generated query is parsed into an AST. The validator asserts that it is a single `SELECT` statement, references only permitted tables, contains no DDL/DML, checks columns via qualification, strips comments, and injects/clamps LIMIT to `max_rows + 1`. Returns opaque `ValidatedSQL` token.
+5. **Read-Only Database Execution**: Executed using `readonly_engine` under the restricted `dq_readonly` role with `SET TRANSACTION READ ONLY` and 3-second statement timeout.
+6. **Result Formatting**: Database records are sanitized into standard tabular JSON, converting Decimals to float and computing deterministic `ChartHint` recommendations.
+7. **Explanation Synthesis**: Produces an accessible explanation describing how the result answers the question, with rule-based fallback if the LLM explanation fails.
+8. **Response Packaging & Audit**: Persists execution metrics to `app.query_history` via `app_engine` (`dq_app` role) and returns standard typed `QueryResponse`.
 
 ---
 
@@ -128,63 +139,69 @@ The system is organized into modular layers with clear single responsibilities:
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                        API Layer                             │
-│  FastAPI Endpoints (v1): Health, Schema, Query, Validate     │
+│  FastAPI Endpoints (v1): Health, Schema, Query, History, Ex. │
 └──────────────┬───────────────────────────────────────────────┘
                │
 ┌──────────────▼───────────────────────────────────────────────┐
 │                     Services Layer                           │
 │  QueryService: Coordinates generation, validation, execution │
-│  SchemaService: Delivers introspected catalog & context      │
-│  ResultFormatter: Cleans data types and tabular shapes       │
+│  ResultFormatter: Cleans data types, decimal conversion      │
+│  Explainer: Generates data explanations with fallback        │
 └──────┬───────────────────────┬───────────────────────┬───────┘
        │                       │                       │
 ┌──────▼────────┐       ┌──────▼────────┐       ┌──────▼───────┐
 │   LLM Layer   │       │Security Layer │       │   DB Layer   │
-│ LLMProvider   │       │SQLValidator   │       │Engine & Pool │
-│  (Protocol)   │       │(sqlglot AST)  │       │dq_readonly   │
-│ Anthropic/Mock│       │Policy Engine  │       │dq_app        │
+│ LLMProvider   │       │sql_validator  │       │Engines & Pool│
+│  (Protocol)   │       │query_executor │       │dq_readonly   │
+│Mock/Ollama/   │       │policy engine  │       │dq_app        │
+│Anthropic/Gem. │       │ValidatedSQL   │       │history_repo  │
 └───────────────┘       └───────────────┘       └──────────────┘
 ```
 
 ### 1. `backend/app/api/v1`
-- **`health.py`**: Health check probe returning database connectivity, LLM mode, and server status.
-- **`schema.py`**: Returns the public database schema definitions and descriptions for the frontend schema viewer.
-- **`query.py`**: Accepts natural language queries, coordinates pipeline execution, and returns results.
+- **`health.py`**: Health check probe returning database connectivity, active LLM provider, and server status.
+- **`schema.py`**: Returns the public database schema definitions, columns, and business definitions for the frontend.
+- **`query.py`**: Accepts natural language queries, coordinates 7-step pipeline execution, and returns standard envelope.
 - **`sql.py`**: Standalone query validator endpoint allowing users or developers to test raw SQL against security policies.
-- **`history.py`**: Read-only pagination over past queries logged in `dq_query_history`.
+- **`history.py`**: Read-only pagination over past queries logged in `app.query_history`.
+- **`examples.py`**: Returns curated prompt exemplars with category tags to assist user query formulation.
 
 ### 2. `backend/app/schemas`
 - Pydantic models enforcing contract boundaries:
-  - `query.py`: `QueryRequest`, `QueryResponse`, `QueryResultColumn`, `QueryResultRow`
+  - `query.py`: `QueryRequest`, `QueryResponse`, `ChartHint`
   - `sql.py`: `SQLValidateRequest`, `SQLValidateResponse`
-  - `llm.py`: `LLMSQLGenerationOutput` (structured output model with `sql`, `assumptions`, `confidence`)
-  - `error.py`: `ErrorDetail`, `ErrorResponseEnvelope`
+  - `history.py`: `HistoryResponse`, `HistoryItem`
+  - `examples.py`: `ExamplesResponse`, `ExampleCategory`, `ExampleItem`
 
 ### 3. `backend/app/db`
-- **`session.py`**: Synchronous SQLAlchemy 2.0 engine factory and connection pool management.
-- **`roles.py`**: Context managers for checking out scoped connections:
-  - `get_readonly_connection()`: Connects or switches role to `dq_readonly` with `SET default_transaction_read_only = on` and `SET statement_timeout = 3000`.
-  - `get_app_connection()`: Connects as `dq_app` for persisting query execution telemetry into `dq_query_history`.
+- **`engines.py`**: Connection pool management creating two distinct SQLAlchemy engines:
+  - `readonly_engine`: Bound to `dq_readonly` for query execution.
+  - `app_engine`: Bound to `dq_app` for persisting query execution telemetry into `app.query_history`.
+- **`history_repo.py`**: Data access functions for recording and fetching history records using `app_engine`.
 
 ### 4. `backend/app/security`
-- **`validator.py`**: AST parser using `sqlglot`. Verifies statement count == 1, expression type == `Select`, validates table identifiers against `ALLOWED_TABLES`, blocks system tables and dangerous built-ins.
-- **`policies.py`**: Configuration defining table whitelist (`customers`, `products`, `orders`, `order_items`), max row limits (default 100, hard limit 500), and banned dialect functions (`pg_sleep`, `version`, etc.).
+- **`sql_validator.py`**: AST parser using `sqlglot`. Verifies statement count == 1, expression type == `Select`, validates table identifiers against `ALLOWED_TABLES`, blocks system tables, qualifies columns, clamps LIMIT to `max_rows + 1`, and produces opaque `ValidatedSQL` token.
+- **`query_executor.py`**: Executes `ValidatedSQL` instances strictly under `dq_readonly` with `SET TRANSACTION READ ONLY;`, `statement_timeout`, and truncation detection.
+- **`policy.py`**: Single source of truth for table whitelist (`customers`, `products`, `orders`, `order_items`, `payments`), column allowlist, function allowlist, and business definitions.
 
 ### 5. `backend/app/llm`
-- **`protocol.py`**: `LLMProvider` Protocol defining standard signatures for `generate_sql(...)` and `generate_explanation(...)`.
-- **`anthropic_provider.py`**: Implementation communicating with Anthropic API (e.g. Claude 3.5 Sonnet) using structured JSON output.
+- **`base.py`**: `LLMProvider` Protocol and `SQLGeneration` Pydantic model.
+- **`factory.py`**: Central provider instantiation supporting `mock`, `ollama`, `anthropic`, and `gemini`.
 - **`mock_provider.py`**: Deterministic mock provider matching predefined questions to exact SQL queries and structured explanations, enabling zero-cost CI and offline test runs.
-- **`prompts.py`**: Prompt engineering templates incorporating table schemas, foreign key diagrams, business definitions, and few-shot examples.
+- **`ollama_provider.py`**: Local model integration via Ollama REST API (e.g. `llama3.2:latest`) with zero API costs.
+- **`anthropic_provider.py`**: Implementation communicating with Anthropic API (e.g. Claude 3.5 Sonnet) using structured tool calling.
+- **`gemini_provider.py`**: Official Google `google-genai` SDK implementation with rate-limiting retries and JSON response schema.
+- **`prompts.py`** & **`schema_context.py`**: Prompt engineering templates incorporating table schemas, foreign key diagrams, business definitions, and few-shot examples.
 
 ### 6. `backend/app/services`
-- **`query_service.py`**: Orchestrates the end-to-end request pipeline.
-- **`schema_service.py`**: Reads and caches database schema definitions and relationship metadata.
-- **`formatter_service.py`**: Converts raw database row tuples into structured JSON payloads, safely handling date/time formatting and decimal conversions.
+- **`query_service.py`**: Orchestrates the 7-step natural language query workflow.
+- **`formatter.py`**: Converts raw database row tuples into structured JSON payloads, safely handling date/time formatting and Decimal-to-float conversions.
+- **`explainer.py`**: Produces plain-English explanations with strict data-only bounds and a deterministic fallback template.
 
 ### 7. `backend/app/core`
-- **`config.py`**: Pydantic `BaseSettings` reading environment variables (`DATABASE_URL`, `ANTHROPIC_API_KEY`, `LLM_PROVIDER`, `ANALYTICS_AS_OF_DATE`, `STATEMENT_TIMEOUT_MS`).
-- **`constants.py`**: Global constants including business definition strings and standard error codes.
-- **`errors.py`**: Custom domain exceptions (`SQLValidationError`, `DatabaseExecutionError`, `LLMGenerationError`).
+- **`config.py`**: Pydantic `BaseSettings` reading environment variables with typed secrets and connection URL properties.
+- **`errors.py`**: Custom domain exceptions (`AppError`, `ValidationRejected`, `UnsupportedQuestion`, `LLMUnavailable`, `DatabaseUnavailable`, `QueryTimeout`, `NotFound`).
+- **`logging.py`**: Structured logger configuration ensuring secrets are never leaked into log output.
 
 ---
 

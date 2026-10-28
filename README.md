@@ -30,7 +30,7 @@ flowchart TD
         Validator["Layer 3: SQLGlot AST Security Policy"]
         QueryService["Query Orchestrator & History Logger"]
         Explainer["Layer 5: Safe Data Explainer"]
-        LLM["Layer 2: LLM Provider (Mock / Claude 3.5 Sonnet)"]
+        LLM["Layer 2: LLM Provider (Mock / Ollama / Anthropic / Gemini)"]
     end
 
     subgraph Database ["PostgreSQL 16 Engine (:5434 / :5432)"]
@@ -57,7 +57,7 @@ flowchart TD
 
 ## Key Features
 
-- **Natural Language to SQL**: Converts natural language questions to compliant PostgreSQL queries using forced JSON schema tool calling (Anthropic Claude 3.5 Sonnet) and a deterministic fallback registry (Mock provider).
+- **Natural Language to SQL**: Converts natural language questions to compliant PostgreSQL queries using pluggable LLM providers (Mock deterministic registry, local Ollama, Anthropic Claude, or Google Gemini).
 - **Multi-Layer Security Validation**:
   - AST parsing via `sqlglot` (Postgres dialect).
   - Whitelist of exactly 5 allowed analytics tables (`customers`, `products`, `orders`, `order_items`, `payments`).
@@ -225,6 +225,31 @@ The response returns status `"success"`, validated SQL executed under `dq_readon
 - **Model Not Found 404 (`Ollama model ... was not found`)**: Run `ollama pull <model-name>` (e.g. `ollama pull llama3.2:latest`).
 - **Embedding Model Error (`nomic-embed-text is an embedding model`)**: Ensure `LLM_MODEL` is set to a generative instruction model (`llama3.2:latest`, `qwen2.5-coder:7b`, etc.) rather than an embedding model.
 - **Request Timed Out**: Local inference time depends on hardware CPU/GPU performance. Increase `OLLAMA_TIMEOUT_SECONDS` (default: 60s) in `.env` if large schema prompts exceed standard timeouts on slower systems.
+
+---
+
+## Cloud LLM Setup with Google Gemini (Free Tier)
+
+DataQuery also natively supports Google Gemini models (e.g. `gemini-2.5-flash` or `gemini-3-flash-preview`) via the official `google-genai` SDK with structured JSON schemas and automatic exponential backoff on HTTP 429 rate limits.
+
+### 1. Obtain a Free Gemini API Key
+Generate an API key from Google AI Studio: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
+
+### 2. Configure in `.env`
+```powershell
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3-flash-preview
+GEMINI_TIMEOUT_SECONDS=30.0
+```
+
+### 3. Run with Gemini
+```powershell
+$env:LLM_PROVIDER="gemini"
+$env:GEMINI_API_KEY="your_api_key"
+$env:GEMINI_MODEL="gemini-3-flash-preview"
+.\backend\.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
 ---
 

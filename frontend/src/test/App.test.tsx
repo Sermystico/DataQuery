@@ -79,6 +79,8 @@ describe('App Integration', () => {
     expect(
       screen.getByText(/Ask natural language business questions/i)
     ).toBeInTheDocument();
+    // Wait for async initial fetches (example chips) to settle
+    expect(await screen.findByText('Total Revenue')).toBeInTheDocument();
   });
 
   it('handles loading state while waiting for API query response', async () => {
@@ -437,6 +439,9 @@ describe('App Integration', () => {
   it('opens history panel, displays audit items, and re-fills query on click', async () => {
     render(<App />);
 
+    // Wait for initial async example chips to settle
+    expect(await screen.findByText('Total Revenue')).toBeInTheDocument();
+
     // Click History button in header
     const historyBtn = screen.getByRole('button', { name: /Open Query History Panel/i });
     fireEvent.click(historyBtn);
@@ -449,6 +454,8 @@ describe('App Integration', () => {
 
     // Drawer closes and textarea is filled
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
-    expect(textarea.value).toBe('Previous historical question');
+    await waitFor(() => {
+      expect(textarea.value).toBe('Previous historical question');
+    });
   });
 });

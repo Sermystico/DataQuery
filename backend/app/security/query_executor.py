@@ -147,6 +147,8 @@ def execute_query(
         ) from ex
 
     duration_ms = (time.perf_counter() - start_time) * 1000.0
+    # If raw_rows has (row_limit + 1) items, more rows exist in the database than the requested limit.
+    # We mark truncated = True and slice off the sentinel row before returning to the caller.
     truncated = len(raw_rows) > row_limit
     final_rows = [list(row) for row in raw_rows[:row_limit]]
 
